@@ -14,11 +14,11 @@ It additionally requires independent `routing_pairs` at C3/C5/C8/C9, and separat
 uninterrupted/resumed routing captures at C9. Read [MoE routing evidence](moe-routing.md)
 and keep the MoE-specific C3/C7/C9 cases; output equality alone is insufficient.
 
-Recipe, evidence and run schemas are v2 after alignment with PR #61551 gate
-responsibilities. Trace encoding remains v1. V1 recipes/evidence are rejected;
+Recipe, evidence and run schemas are v2. Trace encoding remains v1.
+V1 recipes/evidence are rejected;
 create a new run and supply the additional artifacts rather than relabeling old
 results. The [gate table](../skills/train-inference-consistency/references/gates.md)
-and [adaptation notes](../skills/train-inference-consistency/references/pr61551.md)
+and [workflow boundaries](../skills/train-inference-consistency/references/workflow-scope.md)
 define the scope.
 
 ## Identities and trust

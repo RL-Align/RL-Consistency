@@ -1,10 +1,9 @@
-# Applying the vLLM reference to RL-Kernel
+# Workflow scope and integration boundaries
 
-Reference: [PR #61551](https://github.com/vllm-project/vllm/pull/61551), reviewed head
-`939215b66ce8fef6ebc2009de3d6b254bdd371ca`; merged as
-`2d8efee9a73366d6b4e753780af32443d2fef91a`. It contributes workflow documentation,
-not a switch that makes a new model consistent. Consult its workflow and validation
-guides for deeper diagnosis; retain the user's framework, hardware and numerical scope.
+Apply C0–C10 to one bound model, environment and numerical contract. Use the
+user's framework and hardware, preserve the declared comparison scope, and
+collect evidence from actual workers. Model preparation and a successful
+launcher do not establish bitwise consistency.
 
 Apply these requirements:
 
@@ -17,20 +16,20 @@ Apply these requirements:
 - Keep quality, numerical consistency, normal exit, resume and performance conclusions separate.
 - Establish what code, binaries and callsites actually executed.
 
-Adapt the implementation choices deliberately:
+Keep these implementation boundaries explicit:
 
-| Reference choice | RL-Consistency scope |
+| Area | RL-Consistency scope |
 |---|---|
-| mLite/verl and native MCore control | Existing Qwen3/vime/Megatron/vLLM integration; no automatic framework migration |
-| CUDA/CuTe/CUTLASS choices and Triton restriction | Use the reviewed ROCm RL-Kernel provider, including its existing Triton path; no blanket ROCm kernel ban |
-| Rust Bench 8192/1024, c=1/8/32/64 paired serving benchmark | Not implemented here; current formal benchmark is replayed equal-work RL-step timing and memory |
-| Quality/SFT controls chosen by task | Report them separately; synthetic tests and short logprob runs cannot establish quality |
-| Immutable multi-repository delivery image | Record actual environment identity; this repository does not build or certify that image |
+| Framework integration | Existing Qwen3/vime/Megatron/vLLM integration; additional framework routes need their own adapters and evidence |
+| Numerical providers | Use reviewed backend-specific RL-Kernel providers; inspect actual loaded code and binary artifacts |
+| Performance | Replayed equal-work RL-step timing and memory; serving benchmarks need separate implementation and evidence |
+| Quality/SFT controls | Report separately; synthetic tests and short logprob runs cannot establish quality |
+| Delivery environment | Record actual environment identity; this repository does not build or certify a complete runtime image |
 
 The CPU validators check supplied evidence, not GPU execution authenticity. C4/C6
 profile/inventory statements and execution receipts require raw evidence and human
-inspection. Do not advertise full PR compliance when the serving benchmark, full
-dual-path producer or image closure is absent.
+inspection. Report missing producers, runtime providers and validation results
+explicitly when describing a model's support status.
 
 For a user-requested ROCm diagnostic on their existing Qwen3 integration, read
 `docs/rocm-quickstart.md`: `rocm-plan` is read-only; `rocm-check` explicitly launches

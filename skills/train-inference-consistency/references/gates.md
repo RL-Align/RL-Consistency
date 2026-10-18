@@ -1,9 +1,8 @@
 # C0–C10 gates, workflow v2
 
-Follow the responsibilities in [vLLM PR #61551](https://github.com/vllm-project/vllm/pull/61551)
-at head `939215b66ce8fef6ebc2009de3d6b254bdd371ca`. Read
-[the adaptation boundaries](pr61551.md): this project uses RL-Kernel/vime on ROCm
-and does not claim to implement the PR's CUDA/mLite/Rust Bench delivery stack.
+Use the gate responsibilities below with the bound model and environment.
+Read [the workflow scope](workflow-scope.md) for integration boundaries,
+performance measurements and the distinction between diagnostics and acceptance.
 
 | Gate | Required evidence | Exit |
 |---|---|---|

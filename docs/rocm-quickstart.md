@@ -114,5 +114,5 @@ native old-logprob 与 grad-enabled actor 的双路径执行回执，不能自�
 该次同一批 token 的 rollout 与 training。
 
 完整工作流使用 [v2 gate 定义](../skills/train-inference-consistency/references/gates.md)
-和 [证据格式](evidence-format.md)。当前与 PR #61551 的对应和差异见
-[参考设计说明](../skills/train-inference-consistency/references/pr61551.md)。
+和 [证据格式](evidence-format.md)。诊断与正式验收的范围见
+[工作流说明](../skills/train-inference-consistency/references/workflow-scope.md)。

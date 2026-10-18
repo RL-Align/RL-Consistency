@@ -7,9 +7,9 @@ description: Develop and audit bitwise train–inference consistency using RL-Ke
 
 Treat RL-Consistency as an evidence workflow and RL-Kernel as the numerical implementation. Never infer model certification from an installed skill, a successful launcher, a repository directory, or a `status: verified` field.
 
-Use workflow v2, aligned to the gate responsibilities of vLLM PR #61551. Read
-[the reference and ROCm adaptations](references/pr61551.md); do not copy its CUDA,
-framework or benchmark choices into a different user environment without review.
+Use workflow v2 and read [the workflow scope](references/workflow-scope.md).
+Inspect the user's framework, hardware and numerical requirements before
+selecting providers, launch settings or benchmarks.
 
 ## Begin
 

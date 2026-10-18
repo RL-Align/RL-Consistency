@@ -2,27 +2,34 @@
 
 Reusable agent skills and evidence tooling for bitwise train–inference consistency across model integrations, built on [RL-Kernel](https://github.com/RL-Align/RL-Kernel).
 
-**Status: initial development toolkit. No recipe in this repository is GPU-certified.**
-
-**Run on ROCm:** [Qwen3-8B / 8×MI300X quickstart](docs/rocm-quickstart.md).
-`rocm-check` now launches a fixed-policy diagnostic and collects raw comparison
-results into JSON/HTML. It uses an existing prepared RL-Kernel environment.
-
-**Second model:** [Qwen3.8-27B Hybrid Dense onboarding](docs/qwen38.md).
-`prepare-model` validates the real HF config, creates an 8-layer proxy specification
-and emits a candidate recipe. The Hybrid strict runtime and GPU verification remain pending.
-
-**Third model:** [Qwen3-30B-A3B MoE onboarding](docs/qwen3-moe.md).
-The default 4-layer proxy preserves all 128 experts and top-8 routing. MoE gates
-also compare independent expert choices and routing-weight bytes, and check
-dispatch/combine receipts. Strict GPU providers and hardware acceptance remain pending.
-
-Workflow v2 aligns C0–C10 responsibilities with [vLLM PR #61551](https://github.com/vllm-project/vllm/pull/61551),
-including dual training paths and theta0/theta1/theta2 acceptance. Read the
-[explicit adaptations and gaps](skills/train-inference-consistency/references/pr61551.md).
-Old v1 evidence is not automatically relabeled or accepted.
+**Status: development toolkit. All bundled recipes are candidates.**
 
 This project turns a consistency investigation into a repeatable C0–C10 workflow: freeze a strong native baseline, use a representative reduced model to find numerical problems, compare independently computed rollout/training outputs, check independent references, perform real updates, validate the full model and checkpoint resume, then measure performance.
+
+## Model support and bitwise consistency
+
+| Model | Architecture | CUDA integration | ROCm integration | Bitwise consistency verification in this repository |
+|---|---|---|---|---|
+| [Qwen3-8B](docs/qwen3.md) | Dense | Launcher integrated | [Fixed-policy diagnostic available](docs/rocm-quickstart.md) | Full C0–C10 acceptance pending |
+| [Qwen3.8-27B](docs/qwen38.md) | Hybrid Dense, text path | Configuration preparation | Configuration preparation | Strict runtime and GPU acceptance pending |
+| [Qwen3-30B-A3B](docs/qwen3-moe.md) | MoE, 128 experts / top-8 | Configuration preparation | Configuration preparation | Strict runtime and GPU acceptance pending |
+
+**Bitwise consistency** means exact original-byte equality of independently
+computed rollout and training logprobs at the same weight version, within the
+declared backend, model and environment. MoE acceptance also checks independent
+expert choices, routing-weight bytes and dispatch/combine receipts.
+
+The table tracks this repository's integration and acceptance status. No bundled
+recipe has completed GPU C0–C10 acceptance here. Qwen3-8B reuses the existing
+RL-Kernel integration; each bound recipe still needs its own evidence. Hybrid
+and MoE preparation creates proxy configurations and candidate recipes without
+launching GPU jobs. CUDA and ROCm acceptance is recorded separately.
+
+Workflow v2 covers both native old-logprob recomputation and grad-enabled actor
+forward, plus theta0/theta1/theta2 comparisons. Read the
+[gate definitions](skills/train-inference-consistency/references/gates.md) and
+[workflow scope](skills/train-inference-consistency/references/workflow-scope.md).
+Old v1 evidence requires a new run under the v2 requirements.
 
 ## What works in this first version
 

@@ -2,22 +2,30 @@
 
 这是 RL-Kernel 上层的通用 Skill 和验收工具。Skill 规定开发顺序，工具检查证据，底层数值计算继续由 RL-Kernel 承担。
 
-**Qwen3-8B 上 ROCm 跑：直接看 [实机运行步骤](rocm-quickstart.md)。** 配好已有环境路径后，
-`rocm-plan` 看设置，`rocm-check` 启动真实固定策略诊断并自动生成 JSON/HTML。
+## 模型支持与绝对一致性状态
 
-**第二模型 Qwen3.8-27B：已接入 [Hybrid 模型准备流程](qwen38.md)。**
-`prepare-model` 检查真实 config，生成 8 层 proxy 配置、算子清单和候选配方；
-另有独立 FP64 GDN core 精度/梯度参考。Hybrid strict runtime 和 GPU 验收仍待完成。
+| 模型 | 架构 | CUDA 接入 | ROCm 接入 | 本仓库绝对一致性验证状态 |
+|---|---|---|---|---|
+| [Qwen3-8B](qwen3.md) | Dense | 启动器已接入 | [固定策略诊断可运行](rocm-quickstart.md) | 完整 C0–C10 验收待完成 |
+| [Qwen3.8-27B](qwen38.md) | Hybrid Dense，文本路径 | 配置准备已接入 | 配置准备已接入 | 严格运行时与 GPU 验收待完成 |
+| [Qwen3-30B-A3B](qwen3-moe.md) | MoE，128 专家 / top-8 | 配置准备已接入 | 配置准备已接入 | 严格运行时与 GPU 验收待完成 |
 
-**第三模型 Qwen3-30B-A3B：已接入 [MoE 模型准备流程](qwen3-moe.md)。**
-默认 4 层 proxy 保留全部 128 个专家和 top-8；在输出一致性之外，C3/C5/C8/C9
-增加独立路由、专家 ID、路由权重原始位、dispatch/combine 收据及恢复检查。
-MoE strict runtime 和 GPU 验收仍待完成，路由回放不能替代独立重算。
+这里的**绝对一致性（bitwise）**指：在声明的模型、后端和环境范围内，
+同一权重版本的 rollout 与 training 独立计算所得 logprob 原始字节完全相等。
+MoE 还需检查独立路由的专家选择、路由权重原始位和 dispatch/combine 收据。
 
-C0–C10 已按 vLLM PR #61551 的职责调整为 v2，补了 C5 双路径、C4 结构性能、
-C6 backward/STE、θ0/θ1/θ2 和 full-model 前的 recipe review。实现选择继续适配
-RL-Kernel/vime/ROCm；Rust Bench 等参考 PR 的专用部分尚未实现，不能声称完整等同。
-旧 v1 recipe/evidence 不兼容新 gate 定义，需要新建运行，不能直接改编号。
+表格记录本仓库的接入与验收状态，目前没有配方完成 GPU C0–C10 全流程验收。
+Qwen3-8B 复用 RL-Kernel 已有集成，每份绑定配方仍须保留自己的实机证据。
+另外两个模型通过 `prepare-model` 生成 proxy 配置和候选配方，尚不启动 GPU；
+Hybrid 默认 8 层，MoE 默认 4 层并保留 128 专家/top-8。CUDA 与 ROCm 分别验收。
+
+## 工作流与工具
+
+C0–C10 工作流包含 C5 双路径、C4 结构性能、C6 backward/STE、θ0/θ1/θ2
+和完整模型运行前的 recipe review。详见
+[gate 定义](../skills/train-inference-consistency/references/gates.md)与
+[工作流范围](../skills/train-inference-consistency/references/workflow-scope.md)。
+旧 v1 recipe/evidence 需要按 v2 要求新建运行。
 
 目前已经实现：命令行、配置检查、C0–C10 证据验收、逻辑 token 对齐后的原始位比较、依赖失效处理、人工审核记录、HTML 报告，以及调用现有 Qwen3/vime 启动器的桥接代码。
 
