@@ -1,0 +1,125 @@
+{
+  "schema": "rl-consistency.recipe.v1",
+  "id": "qwen3-8b-vime-rocm",
+  "status": "candidate",
+  "model": {
+    "id": "Qwen/Qwen3-8B",
+    "family": "qwen3",
+    "full_layers": 36,
+    "revision": null,
+    "weights_sha256": null,
+    "tokenizer_sha256": null,
+    "config_sha256": null
+  },
+  "rl_kernel": {
+    "repository": "https://github.com/RL-Align/RL-Kernel",
+    "commit": "76a127c206b7ead6fb837b46264ba43f9ef20e82"
+  },
+  "orchestrator": "vime",
+  "target": {
+    "backend": "rocm",
+    "architecture": "gfx942",
+    "world_size": 8,
+    "training": {
+      "engine": "megatron",
+      "tp": 4,
+      "cp": 2,
+      "pp": 1,
+      "ep": 1,
+      "dp": 1
+    },
+    "rollout": {
+      "engine": "vllm",
+      "tp": 4,
+      "cp": 1,
+      "pp": 1,
+      "ep": 1,
+      "dp": 1
+    }
+  },
+  "comparison": {
+    "kind": "within_backend_train_rollout",
+    "independent_recompute": true,
+    "nonfinite": "reject",
+    "dtype": "float32",
+    "scoring_semantics": "selected-token logprob with matched temperature and top-p support; original logical token order"
+  },
+  "sampling": {
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "top_k": -1
+  },
+  "operators": [
+    "embedding",
+    "rms_norm",
+    "qkv_gemm",
+    "qk_norm",
+    "rope",
+    "attention",
+    "o_proj",
+    "residual",
+    "ffn",
+    "lm_head",
+    "logprob"
+  ],
+  "inputs": {
+    "fixture_sha256": null,
+    "min_compared_elements": 1,
+    "max_context_tokens": 7168,
+    "seed": 1234
+  },
+  "accuracy": {
+    "atol": 1e-05,
+    "rtol": 0.0001
+  },
+  "benchmark": {
+    "scope": "end_to_end_step_replayed_tokens",
+    "lr": 5e-07,
+    "weight_decay": 0.1,
+    "kl_coef": 0.001,
+    "max_response_len": 6912,
+    "max_tokens_per_gpu": 4096
+  },
+  "environment": {
+    "lock_sha256": null,
+    "profile_sha256": null,
+    "python_version": null,
+    "sources": {
+      "vime": null,
+      "vllm": null,
+      "megatron": null
+    }
+  },
+  "coverage": {
+    "C3": [
+      "batch",
+      "padding",
+      "permutation"
+    ],
+    "C4": [
+      "chunk",
+      "prefill-decode"
+    ],
+    "C6": [
+      "train-rollout"
+    ],
+    "C7": [
+      "forward-accuracy",
+      "gradient-accuracy"
+    ],
+    "C8": [
+      "update-1",
+      "update-2"
+    ],
+    "C9": [
+      "full-model",
+      "long-context",
+      "checkpoint-resume"
+    ]
+  },
+  "notes": [
+    "Candidate template only; no RL-Consistency GPU certification exists.",
+    "Accuracy tolerances and minimum comparison coverage are placeholders requiring human review before acceptance.",
+    "Within-backend evidence does not establish equality between CUDA and ROCm."
+  ]
+}

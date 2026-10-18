@@ -1,0 +1,4 @@
+interface:
+  display_name: "Train–Inference Consistency"
+  short_description: "Build and audit bitwise train–inference workflows"
+  default_prompt: "Use $train-inference-consistency to onboard a model and produce an evidence-backed consistency report."

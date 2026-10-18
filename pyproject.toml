@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rl-consistency"
+version = "0.1.0.dev0"
+description = "Evidence-driven workflows for bitwise train-inference consistency"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+classifiers = ["Development Status :: 2 - Pre-Alpha", "Programming Language :: Python :: 3"]
+
+[project.scripts]
+rl-consistency = "rl_consistency.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+rl_consistency = ["recipes/*.json"]
