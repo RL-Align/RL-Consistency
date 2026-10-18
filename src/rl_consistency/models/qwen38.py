@@ -74,6 +74,20 @@ def validate_selection(selected):
 
 
 class Qwen38Adapter:
+    model_id = MODEL_ID
+    recipe_prefix = "qwen3-8-27b-vime"
+    default_proxy_layers = 8
+    full_layers = 64
+    vime_commit = VIME_COMMIT
+    guide = "qwen38-27b.md"
+    blockers = ["Hybrid strict numerical providers and worker bindings",
+                "vLLM/Megatron dual-path and recurrent-state capture"]
+
+    @staticmethod
+    def validate_depth(layers):
+        require(type(layers) is int and 8 <= layers < 64 and layers % 4 == 0,
+                "proxy layer count must be 8,12,...,60")
+
     def __init__(self, config):
         require(isinstance(config, dict), "HF config must be an object")
         require(config.get("model_type") == "qwen3_5"

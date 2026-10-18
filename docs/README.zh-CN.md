@@ -9,6 +9,11 @@
 `prepare-model` 检查真实 config，生成 8 层 proxy 配置、算子清单和候选配方；
 另有独立 FP64 GDN core 精度/梯度参考。Hybrid strict runtime 和 GPU 验收仍待完成。
 
+**第三模型 Qwen3-30B-A3B：已接入 [MoE 模型准备流程](qwen3-moe.md)。**
+默认 4 层 proxy 保留全部 128 个专家和 top-8；在输出一致性之外，C3/C5/C8/C9
+增加独立路由、专家 ID、路由权重原始位、dispatch/combine 收据及恢复检查。
+MoE strict runtime 和 GPU 验收仍待完成，路由回放不能替代独立重算。
+
 C0–C10 已按 vLLM PR #61551 的职责调整为 v2，补了 C5 双路径、C4 结构性能、
 C6 backward/STE、θ0/θ1/θ2 和 full-model 前的 recipe review。实现选择继续适配
 RL-Kernel/vime/ROCm；Rust Bench 等参考 PR 的专用部分尚未实现，不能声称完整等同。
@@ -20,7 +25,7 @@ RL-Kernel/vime/ROCm；Rust Bench 等参考 PR 的专用部分尚未实现，不�
 
 旧 sidecar 没有完整权重版本、稳定样本身份和执行来源，导入后只生成诊断报告，不会自动通过验收。`call_index` 也不能当作 optimizer step。
 
-目前没有完成：GPU 端到端验证、引擎自动采集器、proxy 权重物化、Hybrid 数值运行时、已认证配置发布。两个模型的 CUDA/ROCm 配方都是 candidate。仓库已有的 Qwen3 成果是接入基础，不能替代本项目固定版本后的重新验收。
+目前没有完成：GPU 端到端验证、引擎自动采集器、proxy 权重物化、Hybrid/MoE 数值运行时、已认证配置发布。三个模型的六份 CUDA/ROCm 配方都是 candidate。仓库已有的 Qwen3 成果是接入基础，不能替代本项目固定版本后的重新验收。
 
 ## 第一次怎么用
 

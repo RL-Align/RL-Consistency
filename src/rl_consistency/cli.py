@@ -22,13 +22,13 @@ def parser():
     sub = p.add_subparsers(dest="command", required=True)
     sub.add_parser("list", help="list bundled candidate recipes (none are certified)")
     for name in ("inspect-model", "prepare-model"):
-        s = sub.add_parser(name, help="inspect/prepare Qwen3.8-27B Hybrid text-path onboarding; no GPU launch")
+        s = sub.add_parser(name, help="inspect/prepare registered Hybrid or MoE models; no GPU launch")
         s.add_argument("--model", required=True)
         s.add_argument("--config", type=Path, required=True)
         if name == "prepare-model":
             s.add_argument("--backend", choices=("cuda", "rocm"), required=True)
             s.add_argument("--output", type=Path, required=True)
-            s.add_argument("--proxy-layers", type=int, default=8)
+            s.add_argument("--proxy-layers", type=int, help="model default: Hybrid 8, MoE 4")
     export = sub.add_parser("export-recipe", help="copy a candidate recipe for local binding")
     export.add_argument("id")
     export.add_argument("--output", type=Path, required=True)

@@ -1,0 +1,198 @@
+{
+  "schema": "rl-consistency.recipe.v2",
+  "id": "qwen3-30b-a3b-vime-rocm",
+  "status": "candidate",
+  "model": {
+    "id": "Qwen/Qwen3-30B-A3B",
+    "family": "qwen3_moe",
+    "full_layers": 48,
+    "revision": null,
+    "weights_sha256": null,
+    "tokenizer_sha256": null,
+    "config_sha256": null,
+    "master_weights_sha256": null,
+    "config_canonical_sha256": null,
+    "proxy_source_layers": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "execution_scope": {
+      "modality": "text-only",
+      "weight_dtype": "bfloat16",
+      "quantization": "none",
+      "speculative_decoding": false,
+      "routing_replay": false
+    }
+  },
+  "rl_kernel": {
+    "repository": "https://github.com/RL-Align/RL-Kernel",
+    "commit": "76a127c206b7ead6fb837b46264ba43f9ef20e82"
+  },
+  "orchestrator": "vime",
+  "target": {
+    "backend": "rocm",
+    "architecture": "gfx942",
+    "world_size": 8,
+    "training": {
+      "engine": "megatron",
+      "tp": 4,
+      "cp": 1,
+      "pp": 1,
+      "ep": 8,
+      "dp": 2,
+      "expert_tp": 1
+    },
+    "rollout": {
+      "engine": "vllm",
+      "tp": 8,
+      "cp": 1,
+      "pp": 1,
+      "ep": 1,
+      "dp": 1,
+      "expert_tp": 8
+    }
+  },
+  "comparison": {
+    "kind": "within_backend_train_rollout",
+    "independent_recompute": true,
+    "nonfinite": "reject",
+    "dtype": "float32",
+    "scoring_semantics": "selected-token logprob with matched temperature and top-p support; original logical token order"
+  },
+  "sampling": {
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "top_k": -1
+  },
+  "operators": [
+    "embedding",
+    "rms_norm",
+    "residual",
+    "qkv_proj",
+    "qk_norm",
+    "rope",
+    "full_attention",
+    "o_proj",
+    "router_gemm",
+    "router_softmax",
+    "router_topk",
+    "router_normalize",
+    "moe_dispatch",
+    "expert_swiglu",
+    "moe_combine",
+    "ordered_collectives",
+    "lm_head",
+    "logprob"
+  ],
+  "inputs": {
+    "fixture_sha256": null,
+    "min_compared_elements": 1,
+    "max_context_tokens": 7168,
+    "seed": 1234
+  },
+  "accuracy": {
+    "atol": 1e-05,
+    "rtol": 0.0001
+  },
+  "benchmark": {
+    "scope": "end_to_end_step_replayed_tokens",
+    "lr": 5e-07,
+    "weight_decay": 0.1,
+    "kl_coef": 0.001,
+    "max_response_len": 6912,
+    "max_tokens_per_gpu": 4096
+  },
+  "environment": {
+    "lock_sha256": null,
+    "profile_sha256": null,
+    "python_version": null,
+    "sources": {
+      "vime": null,
+      "vllm": null,
+      "megatron": null
+    }
+  },
+  "coverage": {
+    "C3": [
+      "repeat",
+      "batch",
+      "padding",
+      "permutation",
+      "chunk",
+      "prefill-decode",
+      "mixed-scheduling",
+      "cache-state",
+      "router-ties",
+      "expert-imbalance",
+      "dispatch-permutation",
+      "empty-expert",
+      "expert-capacity"
+    ],
+    "C5": [
+      "old-logprob",
+      "actor-forward"
+    ],
+    "C7": [
+      "forward-accuracy",
+      "gradient-accuracy",
+      "optimizer-accuracy",
+      "router-gradient-accuracy",
+      "expert-gradient-accuracy",
+      "combine-gradient-accuracy"
+    ],
+    "C8": [
+      "theta-0",
+      "theta-1",
+      "theta-2"
+    ],
+    "C9": [
+      "old-logprob",
+      "actor-forward",
+      "theta-0",
+      "theta-1",
+      "theta-2",
+      "long-context",
+      "checkpoint-resume",
+      "expert-parallel",
+      "routing-after-sync"
+    ]
+  },
+  "notes": [
+    "Onboarding candidate, not an executable strict launcher or GPU-verified recipe.",
+    "BF16 text, 48 full-attention MoE layers, 128 experts/top-8. No FP8, INT4, routing replay or speculative decoding in this contract.",
+    "Native vime model arguments are integration references, not strict numerical providers. Lower-ID tie breaking, fixed combine order and no token dropping require worker instrumentation and strict providers.",
+    "Eight-GPU starting point mirrors vime training TP4/CP1/PP1/EP8/ETP1 and rollout TP8 without rollout EP. Megatron dense DP2 and expert DP1 overlap process groups; do not multiply TP by EP as independent axes. Bind actual rank placement before acceptance.",
+    "The ROCm candidate is unverified; CUDA launch scripts, DeepEP/fused kernels and memory fit must not be assumed portable.",
+    "HF router_aux_loss_coef is retained in the source config. The explicit training contract follows vime aux coefficient zero; do not silently enable a different training objective.",
+    "RL-Kernel commit is the inspected baseline, not evidence of complete MoE strict providers. Pin implemented providers before acceptance.",
+    "Workload, accuracy tolerances and comparison minima require review; no cross-backend or cross-topology guarantee."
+  ],
+  "acceptance": {
+    "training_step_ratio_max": null
+  },
+  "routing": {
+    "num_experts": 128,
+    "top_k": 8,
+    "score_function": "softmax",
+    "normalize_topk": true,
+    "router_dtype": "float32",
+    "weight_stage": "normalized_pre_cast",
+    "weight_dtype": "float32",
+    "tie_break": "lower_expert_id",
+    "combine_order": "ascending_slot",
+    "drop_tokens": false,
+    "independent_routing": true
+  },
+  "moe_training": {
+    "aux_loss_coef": 0.0,
+    "token_capacity_factor": null
+  },
+  "integration": {
+    "level": "onboarding",
+    "strict_launcher": false,
+    "gpu_verified": false,
+    "runnable_diagnostic": false
+  }
+}

@@ -24,4 +24,13 @@ Pinned inspection revision: `76a127c206b7ead6fb837b46264ba43f9ef20e82`.
 | `rl_engine/integrations/orchestrators/vime/experiments/rocm_attention/validate_artifacts.py` | Non-allgather CP response ownership, mask semantics and train/rollout sidecar comparison |
 | `rl_engine/integrations/orchestrators/vime/experiments/dense/validate_run.py` | CUDA sidecar directory, readbacks and aggregate validation; no automatic C0–C10 equivalence |
 
-All links can be resolved under `https://github.com/RL-Align/RL-Kernel/blob/<revision>/<path>`. No upstream source was copied into this repository. New integration work should re-inspect the pinned revision before adopting APIs and upgrade pins deliberately.
+The RL-Kernel paths above resolve under `https://github.com/RL-Align/RL-Kernel/blob/<revision>/<path>`.
+No upstream kernel implementation was copied into this repository. Model config
+fixtures and emitted model argument arrays are attributed separately. New
+integration work should re-inspect pinned sources and upgrade deliberately.
+
+Qwen3-30B-A3B onboarding also inspects Qwen's HF configuration and vime commit
+`d7e40fe8ed9fd9ab61ecb0ec2259b3cc4568af36`, including its model arguments, native
+launcher, routing-replay tests and training-recovery test. The exact source map
+and the limits of those references are in the
+[MoE guide](../skills/train-inference-consistency/references/qwen3-30b-a3b.md).

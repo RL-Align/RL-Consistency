@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rl-consistency"
-version = "0.2.0.dev1"
+version = "0.2.0.dev2"
 description = "Evidence-driven workflows for bitwise train-inference consistency"
 readme = "README.md"
 requires-python = ">=3.10"

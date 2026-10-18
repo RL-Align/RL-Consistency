@@ -9,7 +9,7 @@ import math
 from .common import require, positive_int, is_hash, digest
 from .compare import compare_traces
 from .contracts import validate_recipe
-from .models.qwen38 import is_hybrid_recipe, check_model_evidence
+from .models import check_model_evidence, recipe_module, qwen3_moe
 
 TITLES = ["Module inventory and route", "Recipe and strong baseline", "Representative proxy",
           "Inference BI/PD", "Structural performance", "Dual-path training forward parity",
@@ -135,8 +135,7 @@ def evaluate(gate, evidence, recipe, artifact, baseline=None):
     require(evidence.get("recipe_sha256") == digest(recipe), "evidence belongs to a different recipe")
     require(evidence.get("environment_sha256") == digest(recipe["environment"]), "evidence environment mismatch")
     require(evidence.get("execution") == "real", "synthetic/smoke data cannot pass model acceptance")
-    if is_hybrid_recipe(recipe):
-        check_model_evidence(gate, evidence, recipe, artifact)
+    check_model_evidence(gate, evidence, recipe, artifact)
     detail = {}
     if gate == "C0":
         runtime = artifact(evidence["runtime"])
@@ -267,5 +266,9 @@ def evaluate(gate, evidence, recipe, artifact, baseline=None):
                   "step_overhead_percent": (b["mean_step_seconds"] / a["mean_step_seconds"] - 1) * 100,
                   "memory_ratio": b["peak_memory_bytes"] / a["peak_memory_bytes"],
                   "performance_threshold_applied": False}
-    passed = all(x["passed"] for x in detail.get("comparisons", []))
+    if recipe_module(recipe) is qwen3_moe and gate in {"C3", "C5", "C8", "C9"}:
+        from .models.routing import check_routing_evidence
+        detail["routing_comparisons"] = check_routing_evidence(gate, evidence, recipe, artifact)
+    passed = all(x["passed"] for x in [*detail.get("comparisons", []),
+                                      *detail.get("routing_comparisons", [])])
     return {"gate": gate, "passed": passed, "detail": detail}

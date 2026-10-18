@@ -12,6 +12,11 @@ results into JSON/HTML. It uses an existing prepared RL-Kernel environment.
 `prepare-model` validates the real HF config, creates an 8-layer proxy specification
 and emits a candidate recipe. The Hybrid strict runtime and GPU verification remain pending.
 
+**Third model:** [Qwen3-30B-A3B MoE onboarding](docs/qwen3-moe.md).
+The default 4-layer proxy preserves all 128 experts and top-8 routing. MoE gates
+also compare independent expert choices and routing-weight bytes, and check
+dispatch/combine receipts. Strict GPU providers and hardware acceptance remain pending.
+
 Workflow v2 aligns C0–C10 responsibilities with [vLLM PR #61551](https://github.com/vllm-project/vllm/pull/61551),
 including dual training paths and theta0/theta1/theta2 acceptance. Read the
 [explicit adaptations and gaps](skills/train-inference-consistency/references/pr61551.md).
@@ -28,11 +33,12 @@ This project turns a consistency investigation into a repeatable C0–C10 workfl
 - Dependency-aware C0–C10 records; changed evidence or repeated prerequisite gates invalidate downstream results.
 - Candidate Qwen3-8B/vime recipes for CUDA SM90 and ROCm gfx942.
 - Qwen3.8-27B BF16 text-path preparation: architecture/operator inventory, source-preserving proxy config, CUDA/ROCm candidates and Hybrid-specific gate requirements.
+- Qwen3-30B-A3B BF16 MoE preparation, CUDA/ROCm candidates and routing-ledger checks alongside output parity at C3/C5/C8/C9, including checkpoint resume.
 - An independent FP64 GDN recurrence/gradient reference for small CPU accuracy fixtures; not a production kernel.
 - A Qwen3 command/preflight bridge to a pinned RL-Kernel launcher; it does not reimplement kernels or duplicate framework patches.
 - The `train-inference-consistency` skill, including baseline isolation, independent accuracy checks and human review points.
 
-**Not implemented yet:** automatic engine instrumentation/evidence production, proxy checkpoint materialization, a generalized multi-model runtime, a signed verified-recipe registry, or cross-hardware/optimizer-trajectory certification. The Hybrid model adapter implements CPU preparation; it does not install strict runtime providers. GPU jobs, weights and framework environments are supplied by the operator. See [the roadmap](docs/roadmap.md).
+**Not implemented yet:** automatic engine instrumentation/evidence production, proxy checkpoint materialization, a generalized multi-model runtime, a signed verified-recipe registry, or cross-hardware/optimizer-trajectory certification. The Hybrid and MoE adapters implement CPU preparation; they do not install strict runtime providers. GPU jobs, weights and framework environments are supplied by the operator. See [the roadmap](docs/roadmap.md).
 
 ## Install and inspect (no GPU needed)
 

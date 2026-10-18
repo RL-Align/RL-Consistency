@@ -1,6 +1,6 @@
 ---
 name: train-inference-consistency
-description: Develop and audit bitwise train–inference consistency using RL-Kernel. Use to onboard models including Qwen3-8B and Qwen3.8-27B Hybrid Dense, diagnose rollout versus training logprob drift, validate batch or prefill/decode invariance, compare a strict path with a native baseline, or review verification evidence.
+description: Develop and audit bitwise train–inference consistency using RL-Kernel. Use to onboard models including Qwen3-8B, Qwen3.8-27B Hybrid Dense and Qwen3-30B-A3B MoE, diagnose rollout versus training logprob or routing drift, validate batch or prefill/decode invariance, compare a strict path with a native baseline, or review verification evidence.
 ---
 
 # Train–Inference Consistency
@@ -18,6 +18,10 @@ framework or benchmark choices into a different user environment without review.
    run `prepare-model` using the real HF config before binding a recipe. Preserve
    nested text config and L/L/L/F order; use an 8-layer proxy by default. This
    adapter prepares a BF16 text-only investigation; it does not launch or certify it.
+   For Qwen3-30B-A3B, read [the MoE guide](references/qwen3-30b-a3b.md), then
+   use `prepare-model` with the actual HF config. Keep 128 experts/top-8 in the
+   default 4-layer proxy. Capture independent routing alongside outputs; R3
+   replay is a separate diagnostic and cannot pass independent-routing gates.
 2. Run `rl-consistency list`, export a matching candidate with `export-recipe`, then run `check`. Pin real model/fixture hashes, source commits, Python package lock and machine profile. Do not fill missing identities with plausible values.
 3. Read [gates.md](references/gates.md) and [numerical-contract.md](references/numerical-contract.md). Obtain an explicit scope: same backend, cross topology, cross hardware, or optimizer trajectory. The current implementation supports within-backend train/rollout evidence only; do not relabel that as the other scopes.
 4. Initialize a new run with a fully bound recipe. Keep run inputs immutable. A changed model, numerical rule, source, environment, scope or tolerance requires a new run.
@@ -46,4 +50,4 @@ Use `scripts/summarize_run.py` to create HTML and inspect `status`. Report the d
 
 ## Current integration boundary
 
-Use `rocm-plan` and `rocm-check` with `docs/rocm-quickstart.md` for an explicitly requested Qwen3-8B ROCm fixed-policy diagnostic. It retains the real upstream sidecars, validates rank/token coverage and reports a scoped raw-byte verdict; it does not pass C5 or C8/C9. The Qwen3-8B `run` bridge remains available for reviewed experiments. For Qwen3.8-27B, use `inspect-model`/`prepare-model` with `docs/qwen38.md` and the linked Hybrid guide; continue provider and capture development rather than relabeling the Qwen3 launcher. Full dual-path producers, Hybrid strict runtime, proxy weight materialization and a signed recipe registry remain extension work. Never replace missing components with dummy successful outputs.
+Use `rocm-plan` and `rocm-check` with `docs/rocm-quickstart.md` for an explicitly requested Qwen3-8B ROCm fixed-policy diagnostic. It retains the real upstream sidecars, validates rank/token coverage and reports a scoped raw-byte verdict; it does not pass C5 or C8/C9. The Qwen3-8B `run` bridge remains available for reviewed experiments. For Qwen3.8-27B and Qwen3-30B-A3B, use `inspect-model`/`prepare-model` with the linked model guides (`docs/qwen38.md`, `docs/qwen3-moe.md`); continue provider and capture development rather than relabeling the Qwen3-8B launcher. Full dual-path producers, Hybrid/MoE strict runtime, proxy weight materialization and a signed recipe registry remain extension work. Never replace missing components with dummy successful outputs.

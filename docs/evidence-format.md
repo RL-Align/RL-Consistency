@@ -9,6 +9,11 @@ and selected prefix, with `checkpoint_materialized: true` and a real
 Keep the Hybrid C3/C7/C9 cases in the recipe; see the
 [model guide](../skills/train-inference-consistency/references/qwen38-27b.md).
 
+Qwen3-30B-A3B uses the same actual-config and materialized-proxy requirements.
+It additionally requires independent `routing_pairs` at C3/C5/C8/C9, and separate
+uninterrupted/resumed routing captures at C9. Read [MoE routing evidence](moe-routing.md)
+and keep the MoE-specific C3/C7/C9 cases; output equality alone is insufficient.
+
 Recipe, evidence and run schemas are v2 after alignment with PR #61551 gate
 responsibilities. Trace encoding remains v1. V1 recipes/evidence are rejected;
 create a new run and supply the additional artifacts rather than relabeling old

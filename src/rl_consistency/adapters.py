@@ -25,7 +25,7 @@ class EngineAdapter(Protocol):
 def plan(recipe, root, profile, python, *, mode="consistency", steps=2):
     validate_recipe(recipe)
     require(recipe["model"]["id"] == "Qwen/Qwen3-8B" and recipe["model"]["family"] == "qwen3",
-            "launch bridge supports Qwen3-8B only; Qwen3.8-27B uses prepare-model and needs Hybrid runtime integration")
+            "launch bridge supports Qwen3-8B only; Hybrid/MoE models use prepare-model and need runtime integration")
     require(recipe["rl_kernel"]["commit"] == RLK_COMMIT, "bridge has only been inspected against the pinned RL-Kernel commit")
     target = recipe["target"]
     require(target["training"]["engine"] == "megatron" and target["rollout"]["engine"] == "vllm"
