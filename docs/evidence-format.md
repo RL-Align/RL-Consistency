@@ -1,5 +1,14 @@
 # Evidence format v2
 
+Qwen3.8-27B adds model-specific requirements to this v2 format. C0, C2 and C9
+must reference the actual full HF JSON as `model_config`; its canonical hash
+must match `recipe.model.config_canonical_sha256`. C2 also references
+`proxy_config`. Its coverage must match the adapter-derived layer descriptors
+and selected prefix, with `checkpoint_materialized: true` and a real
+`weight_manifest_sha256`. A `prepare-model` bundle is not acceptance evidence.
+Keep the Hybrid C3/C7/C9 cases in the recipe; see the
+[model guide](../skills/train-inference-consistency/references/qwen38-27b.md).
+
 Recipe, evidence and run schemas are v2 after alignment with PR #61551 gate
 responsibilities. Trace encoding remains v1. V1 recipes/evidence are rejected;
 create a new run and supply the additional artifacts rather than relabeling old

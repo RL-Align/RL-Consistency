@@ -10,7 +10,7 @@ from pathlib import Path
 from . import __version__
 from .common import ContractError, digest, file_hash, read_json
 from .contracts import unbound_fields, validate_recipe
-from . import adapters, workflow, rocm
+from . import adapters, workflow, rocm, model_setup
 from .compare import compare_traces
 from .report import render
 from .rlk_import import import_sidecars
@@ -21,6 +21,14 @@ def parser():
     p.add_argument("--version", action="version", version=__version__)
     sub = p.add_subparsers(dest="command", required=True)
     sub.add_parser("list", help="list bundled candidate recipes (none are certified)")
+    for name in ("inspect-model", "prepare-model"):
+        s = sub.add_parser(name, help="inspect/prepare Qwen3.8-27B Hybrid text-path onboarding; no GPU launch")
+        s.add_argument("--model", required=True)
+        s.add_argument("--config", type=Path, required=True)
+        if name == "prepare-model":
+            s.add_argument("--backend", choices=("cuda", "rocm"), required=True)
+            s.add_argument("--output", type=Path, required=True)
+            s.add_argument("--proxy-layers", type=int, default=8)
     export = sub.add_parser("export-recipe", help="copy a candidate recipe for local binding")
     export.add_argument("id")
     export.add_argument("--output", type=Path, required=True)
@@ -84,9 +92,18 @@ def main(argv=None):
     code = 0
     try:
         if args.command == "list":
-            result = [{"id": json.loads(p.read_text())["id"], "status": "candidate", "certified": False}
-                      for p in sorted(files("rl_consistency").joinpath("recipes").iterdir(), key=lambda x: x.name)
-                      if p.name.endswith(".json")]
+            result = []
+            for p in sorted(files("rl_consistency").joinpath("recipes").iterdir(), key=lambda x: x.name):
+                if p.name.endswith(".json"):
+                    recipe = json.loads(p.read_text())
+                    result.append({"id": recipe["id"], "model": recipe["model"]["id"],
+                                   "status": "candidate", "certified": False,
+                                   "integration": recipe.get("integration", {"level": "qwen3-launch-bridge"})})
+        elif args.command == "inspect-model":
+            result = model_setup.inspect(args.model, args.config)
+        elif args.command == "prepare-model":
+            result = model_setup.prepare(args.model, args.config, args.backend, args.output,
+                                         proxy_layers=args.proxy_layers)
         elif args.command == "export-recipe":
             choices = {p.name.removesuffix(".json"): p for p in files("rl_consistency").joinpath("recipes").iterdir()
                        if p.name.endswith(".json")}

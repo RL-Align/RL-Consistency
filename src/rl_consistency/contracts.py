@@ -4,6 +4,7 @@ from __future__ import annotations
 import math
 import re
 from .common import ContractError, is_hash, positive_int, require
+from .models.qwen38 import is_hybrid_recipe, validate_hybrid_recipe
 
 SCHEMA = "rl-consistency.recipe.v2"
 BITWISE_GATES = ("C3", "C5", "C8", "C9")
@@ -69,6 +70,8 @@ def validate_recipe(recipe, bound=False):
             all(isinstance(x, str) and x for x in recipe["operators"]) and
             len(recipe["operators"]) == len(set(recipe["operators"])), "operator inventory invalid")
     require(is_hash(recipe["rl_kernel"]["commit"], 40), "RL-Kernel commit must be pinned")
+    if is_hybrid_recipe(recipe):
+        validate_hybrid_recipe(recipe, bound=bound)
     if bound:
         budget = recipe.get("acceptance", {}).get("training_step_ratio_max")
         require(type(budget) in (int, float) and math.isfinite(budget) and budget > 0,
@@ -98,4 +101,6 @@ def unbound_fields(recipe):
         fields.extend(f"{section}.{name}" for name in names if not recipe.get(section, {}).get(name))
     fields.extend(f"environment.sources.{name}" for name in ("vime", "vllm", "megatron")
                   if not recipe.get("environment", {}).get("sources", {}).get(name))
+    if is_hybrid_recipe(recipe) and not recipe["model"].get("config_canonical_sha256"):
+        fields.append("model.config_canonical_sha256")
     return fields

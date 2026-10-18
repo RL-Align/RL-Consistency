@@ -17,7 +17,7 @@ class CLITests(unittest.TestCase):
     def test_list_and_schema(self):
         out = io.StringIO()
         with contextlib.redirect_stdout(out): self.assertEqual(main(['list']),0)
-        self.assertEqual(len(json.loads(out.getvalue())),2)
+        self.assertEqual(len(json.loads(out.getvalue())),4)
         self.assertTrue(all(not x['certified'] for x in json.loads(out.getvalue())))
         validate_recipe(recipe(),bound=True)
 

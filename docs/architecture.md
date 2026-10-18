@@ -32,6 +32,9 @@ adapter work.
 | `src/rl_consistency/gates.py` | Gate-specific machine checks |
 | `src/rl_consistency/workflow.py` | Immutable recipes, evidence snapshots, invalidation and review records |
 | `src/rl_consistency/adapters.py` | Model/engine protocols and Qwen3 launcher bridge |
+| `src/rl_consistency/models/qwen38.py` | Hybrid Dense config inventory, proxy specification and model-specific gate checks |
+| `src/rl_consistency/models/gdn_reference.py` | CPU FP64 GDN core accuracy reference with autograd |
+| `src/rl_consistency/model_setup.py` | Read-only inspection and new model preparation bundles; no GPU launcher |
 | `src/rl_consistency/report.py` | Escaped, offline HTML |
 | `src/rl_consistency/recipes/` | Packaged candidate recipes |
 | `tests/` | Synthetic CPU regression tests; not numerical certification |
@@ -50,4 +53,8 @@ The manifest/result hash scheme detects ordinary drift; it is not tamper-proof a
 
 Implement a topology/operator inventory, a reduced-model builder preserving original dimensions and precision, and semantic boundaries for tracing. Implement worker-side engine capture and full-model/optimizer/checkpoint evidence production. Add real coverage cases and tests, then repeat C0–C10. Do not assume an empty adapter directory means support.
 
-The first CLI deliberately accepts only the Qwen3/vime/vLLM/Megatron launch path. Cross-hardware, MoE router replay, PD separation and other frameworks need explicit adapter and contract work.
+GPU launch commands deliberately accept only the Qwen3-8B/vime/vLLM/Megatron path.
+The second model, Qwen3.8-27B, has a working CPU preparation adapter with Hybrid
+coverage requirements; its strict providers, engine capture and launch bridge
+are pending. Cross-hardware, MoE router replay, PD separation and other frameworks
+need explicit adapter and contract work.

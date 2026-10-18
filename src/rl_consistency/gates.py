@@ -9,6 +9,7 @@ import math
 from .common import require, positive_int, is_hash, digest
 from .compare import compare_traces
 from .contracts import validate_recipe
+from .models.qwen38 import is_hybrid_recipe, check_model_evidence
 
 TITLES = ["Module inventory and route", "Recipe and strong baseline", "Representative proxy",
           "Inference BI/PD", "Structural performance", "Dual-path training forward parity",
@@ -134,6 +135,8 @@ def evaluate(gate, evidence, recipe, artifact, baseline=None):
     require(evidence.get("recipe_sha256") == digest(recipe), "evidence belongs to a different recipe")
     require(evidence.get("environment_sha256") == digest(recipe["environment"]), "evidence environment mismatch")
     require(evidence.get("execution") == "real", "synthetic/smoke data cannot pass model acceptance")
+    if is_hybrid_recipe(recipe):
+        check_model_evidence(gate, evidence, recipe, artifact)
     detail = {}
     if gate == "C0":
         runtime = artifact(evidence["runtime"])

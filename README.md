@@ -8,6 +8,10 @@ Reusable agent skills and evidence tooling for bitwise train–inference consist
 `rocm-check` now launches a fixed-policy diagnostic and collects raw comparison
 results into JSON/HTML. It uses an existing prepared RL-Kernel environment.
 
+**Second model:** [Qwen3.8-27B Hybrid Dense onboarding](docs/qwen38.md).
+`prepare-model` validates the real HF config, creates an 8-layer proxy specification
+and emits a candidate recipe. The Hybrid strict runtime and GPU verification remain pending.
+
 Workflow v2 aligns C0–C10 responsibilities with [vLLM PR #61551](https://github.com/vllm-project/vllm/pull/61551),
 including dual training paths and theta0/theta1/theta2 acceptance. Read the
 [explicit adaptations and gaps](skills/train-inference-consistency/references/pr61551.md).
@@ -23,10 +27,12 @@ This project turns a consistency investigation into a repeatable C0–C10 workfl
 - A pinned RL-Kernel sidecar importer with TP replica checks and CP token alignment, producing diagnostic reports without certification claims.
 - Dependency-aware C0–C10 records; changed evidence or repeated prerequisite gates invalidate downstream results.
 - Candidate Qwen3-8B/vime recipes for CUDA SM90 and ROCm gfx942.
+- Qwen3.8-27B BF16 text-path preparation: architecture/operator inventory, source-preserving proxy config, CUDA/ROCm candidates and Hybrid-specific gate requirements.
+- An independent FP64 GDN recurrence/gradient reference for small CPU accuracy fixtures; not a production kernel.
 - A Qwen3 command/preflight bridge to a pinned RL-Kernel launcher; it does not reimplement kernels or duplicate framework patches.
 - The `train-inference-consistency` skill, including baseline isolation, independent accuracy checks and human review points.
 
-**Not implemented yet:** automatic engine instrumentation/evidence production, automatic reduced-model construction, a generalized multi-model runtime, a signed verified-recipe registry, or cross-hardware/optimizer-trajectory certification. Engine/model protocols are extension interfaces, not working implementations. GPU jobs, weights and framework environments are supplied by the operator. See [the roadmap](docs/roadmap.md).
+**Not implemented yet:** automatic engine instrumentation/evidence production, proxy checkpoint materialization, a generalized multi-model runtime, a signed verified-recipe registry, or cross-hardware/optimizer-trajectory certification. The Hybrid model adapter implements CPU preparation; it does not install strict runtime providers. GPU jobs, weights and framework environments are supplied by the operator. See [the roadmap](docs/roadmap.md).
 
 ## Install and inspect (no GPU needed)
 
