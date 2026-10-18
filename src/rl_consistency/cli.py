@@ -13,6 +13,7 @@ from .contracts import unbound_fields, validate_recipe
 from . import adapters, workflow
 from .compare import compare_traces
 from .report import render
+from .rlk_import import import_sidecars
 
 
 def parser():
@@ -51,6 +52,13 @@ def parser():
     compare.add_argument("--accuracy", action="store_true")
     compare.add_argument("--atol", type=float, default=0.0)
     compare.add_argument("--rtol", type=float, default=0.0)
+    ingest = sub.add_parser("import-rlk", help="compare pinned Vime sidecars as diagnostics; does not pass gates")
+    ingest.add_argument("--source", type=Path, required=True)
+    ingest.add_argument("--output", type=Path, required=True)
+    ingest.add_argument("--tp", type=int, required=True)
+    ingest.add_argument("--cp", type=int, required=True)
+    ingest.add_argument("--world-size", type=int, required=True)
+    ingest.add_argument("--layout", choices=("vime-zigzag",), required=True)
     for name in ("plan", "preflight", "run"):
         s = sub.add_parser(name, help=f"{name} the pinned RL-Kernel Qwen3 bridge")
         s.add_argument("--recipe", type=Path, required=True)
@@ -102,6 +110,10 @@ def main(argv=None):
             result = compare_traces(read_json(args.left), read_json(args.right), accuracy=args.accuracy,
                                     atol=args.atol, rtol=args.rtol)
             code = 0 if result["passed"] else 1
+        elif args.command == "import-rlk":
+            result = import_sidecars(args.source, args.output, tp=args.tp, cp=args.cp,
+                                     world_size=args.world_size, layout=args.layout)
+            code = 0 if result["comparison"]["passed"] else 1
         else:
             recipe = read_json(args.recipe)
             params = (recipe, args.rl_kernel_root, args.profile, args.python)

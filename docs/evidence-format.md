@@ -48,6 +48,13 @@ The illustrated bytes represent -1.0 in little-endian FP32; they are an encoding
 
 The comparator's `first_mismatch` is in sorted logical-key order; it is not a topological first-divergence locator. Use the model graph and intermediate captures for causality.
 
+The optional `capture.TraceWriter` API validates complete fixture-declared key
+coverage and atomically publishes traces. Its `capture.worker_manifest` records
+loaded-file fingerprints; this does not replace the complete runtime/model
+artifact for C0 or observed operator bindings for C5. See [capture.md](capture.md).
+The historical sidecar importer uses a separate `rl-consistency.rlk-diagnostic.v1`
+schema and does not generate gate-eligible trace identities.
+
 For C7, use producer `training` versus `reference`, different implementation fingerprints and `reference_kind: independent_mathematical`. Use the recipe's pre-reviewed `atol`/`rtol`; tolerances in result files have no effect. Both mandatory cases `forward-accuracy` and `gradient-accuracy` must be present. Declare the complete tensor/parameter set being tested in the fixture and review it; the generic toolkit cannot infer unrecorded model parameters.
 
 ## Gate-specific artifacts

@@ -23,3 +23,12 @@ Review the native and strict plans before launching. `--mode native` is the base
 Supported bridge scope: eight GPUs, training TP×CP=8, training/rollout PP=EP=explicit DP=1; rollout TP×CP divides eight. ROCm additionally requires rollout CP1, positive temperature and top-k disabled. The bridge uses `run` on both platforms, not CUDA-only `verify`. Two launcher steps alone do not prove two nonzero updates; C8 requires separate actual optimizer evidence.
 
 The parent Python process may pass host preflight while engine subprocesses import different modules. Capture worker provenance in C0/C5 and confirm all relevant ranks. Successful launch planning is not a source/build/runtime equivalence proof.
+
+## Existing run artifacts
+
+`rl-consistency import-rlk` can inspect the pinned CUDA `mismatch-sidecars` or
+ROCm `mismatch_sidecars` directory after a run completes. It reconstructs
+response-token positions, checks TP replicas and CP coverage, and retains raw
+bytes and source hashes. It produces diagnostics only: these sidecars omit
+the full identities needed for formal gate evidence. For the command and
+worker-side capture API, see [capture.md](capture.md).

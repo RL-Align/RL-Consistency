@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+import tempfile
 from pathlib import Path
 
 
@@ -50,6 +52,21 @@ def file_hash(path):
 def write_json(path, value):
     Path(path).write_text(json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n",
                           encoding="utf-8")
+
+
+def publish_json(path, value):
+    """Atomically publish a complete new file, never replacing existing evidence."""
+    path = Path(path)
+    data = json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    fd, temporary = tempfile.mkstemp(prefix=".capture-", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.link(temporary, path)
+    finally:
+        os.unlink(temporary)
 
 
 def is_hash(value, length=64):

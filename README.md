@@ -10,6 +10,8 @@ This project turns a consistency investigation into a repeatable C0–C10 workfl
 
 - A CPU-only, standard-library CLI for recipe inspection, immutable run setup, gate evidence validation, review records and HTML reports.
 - Raw-byte FP16/BF16/FP32/FP64 comparisons with logical token alignment, signed-zero detection and rejection of empty/non-finite/missing data.
+- An explicit worker trace API with fixture coverage checks and loaded module/library fingerprints; optional PyTorch tensor capture.
+- A pinned RL-Kernel sidecar importer with TP replica checks and CP token alignment, producing diagnostic reports without certification claims.
 - Dependency-aware C0–C10 records; changed evidence or repeated prerequisite gates invalidate downstream results.
 - Candidate Qwen3-8B/vime recipes for CUDA SM90 and ROCm gfx942.
 - A Qwen3 command/preflight bridge to a pinned RL-Kernel launcher; it does not reimplement kernels or duplicate framework patches.
@@ -51,6 +53,11 @@ rl-consistency report --run-dir runs/qwen3-001 --output runs/qwen3-001/report.ht
 ```
 
 Read [the evidence format](docs/evidence-format.md), [architecture](docs/architecture.md), and [Qwen3 integration](docs/qwen3.md) before writing a producer. A gate never executes arbitrary commands from an evidence file. It snapshots and evaluates supplied artifacts. Missing evidence remains pending; malformed or unsuccessful evidence fails.
+
+Existing RL-Kernel sidecars can now be inspected with `rl-consistency import-rlk`.
+See [worker capture and sidecar import](docs/capture.md) for the command, supported
+layout and the worker API. The importer retains raw values and source hashes;
+it does not convert missing identities into a passing gate.
 
 `rl-consistency run` explicitly launches a GPU job after host preflight. Its log and return code do not automatically pass any gate. `plan`, `check`, `init`, `status`, `compare`, `gate`, `review` and `report` do not launch GPU jobs.
 

@@ -4,6 +4,10 @@
 
 目前已经实现：命令行、配置检查、C0–C10 证据验收、逻辑 token 对齐后的原始位比较、依赖失效处理、人工审核记录、HTML 报告，以及调用现有 Qwen3/vime 启动器的桥接代码。
 
+新增了真实产物接入：`import-rlk` 读取已有 `.pt` sidecar，检查 TP 副本、CP 分片、loss mask 和逐 token 位差异；`TraceWriter` 在 worker 内导出带身份信息、预期覆盖检查的 trace，`worker_manifest` 记录已加载模块和共享库的文件指纹。详见 [采集接入说明](capture.md)。API 已可用，尚未自动注入 vLLM/Megatron。
+
+旧 sidecar 没有完整权重版本、稳定样本身份和执行来源，导入后只生成诊断报告，不会自动通过验收。`call_index` 也不能当作 optimizer step。
+
 目前没有完成：GPU 端到端验证、引擎自动采集器、自动缩层、新模型运行时、已认证配置发布。CUDA/ROCm 两个配置都是 candidate。仓库已有的 Qwen3 成果是接入基础，不能替代本项目固定版本后的重新验收。
 
 ## 第一次怎么用

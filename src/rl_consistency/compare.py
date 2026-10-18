@@ -23,8 +23,12 @@ def validate_trace(trace):
         require(is_hash(trace.get(key)), f"trace {key} missing")
     require(isinstance(trace.get("weight_version"), str) and bool(trace["weight_version"]), "weight version missing")
     require(trace.get("independent") is True, "trace must be independently computed")
-    require(trace.get("dtype") in DTYPES, "unsupported trace dtype")
-    records = trace.get("records")
+    return validate_records(trace.get("records"), trace.get("dtype"))
+
+
+def validate_records(records, dtype):
+    """Validate bytes without inventing model/execution identities."""
+    require(dtype in DTYPES, "unsupported trace dtype")
     require(isinstance(records, list) and records, "empty traces cannot pass")
     out = {}
     for record in records:
@@ -39,8 +43,8 @@ def validate_trace(trace):
             data = bytes.fromhex(record["hex"])
         except (TypeError, ValueError, KeyError) as exc:
             raise ValueError("trace requires hexadecimal tensor bytes") from exc
-        require(len(data) == math.prod(shape) * DTYPES[trace["dtype"]][0], "shape/byte count mismatch")
-        values = unpack(trace["dtype"], data)
+        require(len(data) == math.prod(shape) * DTYPES[dtype][0], "shape/byte count mismatch")
+        values = unpack(dtype, data)
         require(all(math.isfinite(x) for x in values), f"non-finite tensor: {key}")
         out[key] = (shape, data, values)
     return out
@@ -50,8 +54,18 @@ def compare_traces(left, right, *, accuracy=False, atol=0.0, rtol=0.0):
     a, b = validate_trace(left), validate_trace(right)
     for key in ("weight_version", "weights_sha256", "inputs_sha256", "semantics_sha256"):
         require(left[key] == right[key], f"comparison identity mismatch: {key}")
+    return _compare(a, b, left["dtype"], right["dtype"], accuracy=accuracy, atol=atol, rtol=rtol)
+
+
+def compare_records(left, right, left_dtype, right_dtype, *, accuracy=False, atol=0.0, rtol=0.0):
+    """Numerical diagnostic only; callers must separately check provenance."""
+    a, b = validate_records(left, left_dtype), validate_records(right, right_dtype)
+    return _compare(a, b, left_dtype, right_dtype, accuracy=accuracy, atol=atol, rtol=rtol)
+
+
+def _compare(a, b, left_dtype, right_dtype, *, accuracy, atol, rtol):
     if not accuracy:
-        require(left["dtype"] == right["dtype"], "bitwise comparison requires equal dtype")
+        require(left_dtype == right_dtype, "bitwise comparison requires equal dtype")
     require(a.keys() == b.keys(), "logical tensor coverage mismatch")
     require(all(math.isfinite(x) and x >= 0 for x in (atol, rtol)), "invalid tolerance")
     mismatch_elements = 0
@@ -62,7 +76,7 @@ def compare_traces(left, right, *, accuracy=False, atol=0.0, rtol=0.0):
         shape, raw_a, values_a = a[key]
         shape_b, raw_b, values_b = b[key]
         require(shape == shape_b, f"shape mismatch at {key}")
-        size = DTYPES[left["dtype"]][0]
+        size = DTYPES[left_dtype][0]
         for index, (x, y) in enumerate(zip(values_a, values_b)):
             total += 1
             delta = abs(x - y)

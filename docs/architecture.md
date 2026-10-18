@@ -16,11 +16,18 @@ flowchart TD
 
 Worker-side capture adapters are an integration task in this release, not automatic instrumentation. They must observe actual loaded kernels, logical tokens and weight versions in the actual engine workers.
 
+The explicit capture API and the historical sidecar diagnostic importer are
+implemented; [capture.md](capture.md) describes their boundaries. Engine hook
+installation, weight observation and distributed evidence assembly remain
+adapter work.
+
 | Path | Responsibility |
 |---|---|
 | `skills/train-inference-consistency/` | Agent workflow, boundaries and debugging practice |
 | `src/rl_consistency/contracts.py` | Bound model/environment/coverage contract |
 | `src/rl_consistency/compare.py` | Raw-bit or independent-reference comparisons |
+| `src/rl_consistency/capture.py` | Worker provenance and exact-coverage trace publication |
+| `src/rl_consistency/rlk_import.py` | Pinned Vime sidecar diagnostics, TP/CP checks; no gate promotion |
 | `src/rl_consistency/gates.py` | Gate-specific machine checks |
 | `src/rl_consistency/workflow.py` | Immutable recipes, evidence snapshots, invalidation and review records |
 | `src/rl_consistency/adapters.py` | Model/engine protocols and Qwen3 launcher bridge |
