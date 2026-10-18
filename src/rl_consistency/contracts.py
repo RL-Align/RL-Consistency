@@ -5,13 +5,13 @@ import math
 import re
 from .common import ContractError, is_hash, positive_int, require
 
-SCHEMA = "rl-consistency.recipe.v1"
-BITWISE_GATES = ("C3", "C4", "C6", "C8", "C9")
+SCHEMA = "rl-consistency.recipe.v2"
+BITWISE_GATES = ("C3", "C5", "C8", "C9")
 
 
 def validate_recipe(recipe, bound=False):
     require(isinstance(recipe, dict), "recipe must be an object")
-    require(recipe.get("schema") == SCHEMA, "unsupported recipe schema")
+    require(recipe.get("schema") == SCHEMA, "recipe v2 required; v1 gate meanings must not be relabeled")
     require(re.fullmatch(r"[a-z0-9][a-z0-9-]*", recipe.get("id", "")) is not None,
             "recipe id must be lowercase words separated by hyphens")
     require(recipe.get("status") in {"candidate", "verified"}, "invalid recipe status")
@@ -51,12 +51,12 @@ def validate_recipe(recipe, bound=False):
         require(isinstance(cases, list) and len(cases) > 0 and
                 all(isinstance(c, str) and c.strip() for c in cases) and len(cases) == len(set(cases)),
                 f"{gate} requires unique, nonempty case IDs")
-    require(len(coverage["C3"]) >= 3, "C3 must cover batching, padding and permutation")
-    require(len(coverage["C4"]) >= 2, "C4 must cover chunking and prefill/decode")
     for gate, required in {
-        "C3": {"batch", "padding", "permutation"},
-        "C4": {"chunk", "prefill-decode"},
-        "C7": {"forward-accuracy", "gradient-accuracy"},
+        "C3": {"repeat", "batch", "padding", "permutation", "chunk", "prefill-decode", "mixed-scheduling", "cache-state"},
+        "C5": {"old-logprob", "actor-forward"},
+        "C7": {"forward-accuracy", "gradient-accuracy", "optimizer-accuracy"},
+        "C8": {"theta-0", "theta-1", "theta-2"},
+        "C9": {"old-logprob", "actor-forward", "theta-0", "theta-1", "theta-2", "long-context", "checkpoint-resume"},
     }.items():
         require(required <= set(coverage[gate]), f"{gate} misses mandatory case IDs")
     require("checkpoint-resume" in coverage["C9"], "C9 requires checkpoint-resume")
@@ -70,9 +70,12 @@ def validate_recipe(recipe, bound=False):
             len(recipe["operators"]) == len(set(recipe["operators"])), "operator inventory invalid")
     require(is_hash(recipe["rl_kernel"]["commit"], 40), "RL-Kernel commit must be pinned")
     if bound:
-        for key in ("revision", "weights_sha256", "tokenizer_sha256", "config_sha256"):
+        budget = recipe.get("acceptance", {}).get("training_step_ratio_max")
+        require(type(budget) in (int, float) and math.isfinite(budget) and budget > 0,
+                "bind reviewed acceptance.training_step_ratio_max")
+        for key in ("revision", "weights_sha256", "master_weights_sha256", "tokenizer_sha256", "config_sha256"):
             require(bool(model.get(key)), f"bind model.{key} before initializing a run")
-        for key in ("weights_sha256", "tokenizer_sha256", "config_sha256"):
+        for key in ("weights_sha256", "master_weights_sha256", "tokenizer_sha256", "config_sha256"):
             require(is_hash(model[key]), f"model.{key} must be SHA256")
         require(is_hash(recipe["inputs"]["fixture_sha256"]), "bind inputs.fixture_sha256")
         environment = recipe.get("environment", {})
@@ -87,7 +90,8 @@ def validate_recipe(recipe, bound=False):
 def unbound_fields(recipe):
     fields = []
     for section, names in {
-        "model": ("revision", "weights_sha256", "tokenizer_sha256", "config_sha256"),
+        "model": ("revision", "weights_sha256", "master_weights_sha256", "tokenizer_sha256", "config_sha256"),
+        "acceptance": ("training_step_ratio_max",),
         "inputs": ("fixture_sha256",),
         "environment": ("lock_sha256", "profile_sha256", "python_version"),
     }.items():

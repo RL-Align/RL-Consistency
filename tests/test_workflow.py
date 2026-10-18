@@ -60,11 +60,22 @@ class WorkflowTests(unittest.TestCase):
         self.gate('C0')
         self.assertFalse(status(self.root)['reviews'][0]['valid'])
 
+    def test_recipe_review_required_before_c9(self):
+        self.gate('C0'); review(self.root,'precision','test','synthetic decision')
+        for i in range(2,9): self.assertTrue(self.gate(f'C{i}')['passed'])
+        with self.assertRaisesRegex(ContractError,'recipe review'): self.gate('C9')
+        review(self.root,'recipe','test','synthetic decision')
+        self.assertTrue(self.gate('C9')['passed'])
+        self.gate('C5')
+        self.assertEqual(status(self.root)['gates']['C9']['status'],'invalidated')
+
     def test_entire_synthetic_workflow_and_report(self):
         self.gate('C0'); self.gate('C1')
         review(self.root,'baseline','test','synthetic fixture; not a real approval')
         review(self.root,'precision','test','synthetic fixture; not a real approval')
-        for i in range(2,11): self.assertTrue(self.gate(f'C{i}')['passed'])
+        for i in range(2,11):
+            if i == 9: review(self.root,'recipe','test','synthetic fixture; not a real approval')
+            self.assertTrue(self.gate(f'C{i}')['passed'])
         self.assertFalse(status(self.root)['release_eligible'])
         review(self.root,'release','test','synthetic fixture; not a real approval')
         self.assertTrue(status(self.root)['release_eligible'])

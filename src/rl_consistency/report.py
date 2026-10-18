@@ -3,11 +3,12 @@ import html
 import json
 from pathlib import Path
 from .workflow import status
+from .gates import TITLES
 
 
 def render(root, output):
     snapshot = status(root)
-    rows = "".join(f"<tr><td>{html.escape(g)}</td><td>{html.escape(v['status'])}</td></tr>"
+    rows = "".join(f"<tr><td>{html.escape(g)}</td><td>{html.escape(TITLES[int(g[1:])])}</td><td>{html.escape(v['status'])}</td></tr>"
                    for g, v in snapshot["gates"].items())
     payload = html.escape(json.dumps(snapshot, indent=2, ensure_ascii=False, allow_nan=False))
     verdict = "Eligible for release review record inspection" if snapshot["release_eligible"] else "Not certified"
@@ -18,5 +19,5 @@ h1{{letter-spacing:-.04em}}table{{width:100%;border-collapse:collapse}}td,th{{pa
 pre{{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6f9;padding:20px}}.badge{{padding:12px;background:#eef3fc}}</style>
 <h1>RL-Consistency</h1><p>{html.escape(snapshot['recipe'])}</p><p class="badge">{verdict}</p>
 <p>Scope: the pinned recipe only. A passing launcher is not model certification.</p>
-<table><tr><th>Gate</th><th>Status</th></tr>{rows}</table><h2>Evidence and review records</h2><pre>{payload}</pre></html>''', encoding="utf-8")
+<table><tr><th>Gate</th><th>Meaning</th><th>Status</th></tr>{rows}</table><h2>Evidence and review records</h2><pre>{payload}</pre></html>''', encoding="utf-8")
     return snapshot

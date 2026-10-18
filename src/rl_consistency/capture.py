@@ -87,7 +87,7 @@ class TraceWriter:
     """
     def __init__(self, *, producer, weight_version, weights_sha256, inputs_sha256,
                  semantics_sha256, implementation_manifest, independent, expected_keys,
-                 reference_kind=None):
+                 reference_kind=None, execution_path=None):
         manifest = copy.deepcopy(implementation_manifest)
         require(isinstance(manifest, dict) and manifest.get("schema") == "rl-consistency.worker.v1",
                 "worker implementation manifest required")
@@ -115,6 +115,8 @@ class TraceWriter:
                                      "expected_keys_sha256": digest(sorted(keys))}}
         if reference_kind is not None:
             self.metadata["reference_kind"] = reference_kind
+        if execution_path is not None:
+            self.metadata["execution_path"] = copy.deepcopy(execution_path)
         # Validate identities before accepting data (the probe is never saved).
         validate_trace({**self.metadata, "dtype": "float32", "records": [
             {"sample": keys[0][0], "position": keys[0][1], "node": keys[0][2], "shape": [], "hex": "00000000"}]})

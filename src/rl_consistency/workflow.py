@@ -30,7 +30,7 @@ def initialize(root, recipe):
     (root / "attempts").mkdir()
     (root / "reviews").mkdir()
     write_json(root / "recipe.json", recipe)
-    write_json(root / "manifest.json", {"schema": "rl-consistency.run.v1", "id": uuid.uuid4().hex,
+    write_json(root / "manifest.json", {"schema": "rl-consistency.run.v2", "id": uuid.uuid4().hex,
                                        "created": now(), "recipe_sha256": digest(recipe)})
     return root
 
@@ -80,10 +80,10 @@ def status(root):
         reviews.append({**review, "valid": valid})
     complete = all(v["status"] == "passed" for v in states.values())
     reviewed = {r["kind"] for r in reviews if r["valid"]}
-    return {"schema": "rl-consistency.status.v1", "recipe": recipe["id"],
+    return {"schema": "rl-consistency.status.v2", "recipe": recipe["id"],
             "run_id": read_json(root / "manifest.json")["id"], "gates": states, "reviews": reviews,
             "all_gates_passed": complete,
-            "release_eligible": complete and {"baseline", "precision", "release"} <= reviewed,
+            "release_eligible": complete and {"baseline", "precision", "recipe", "release"} <= reviewed,
             "trust_note": "Local review records are declarations, not authenticated signatures; inspect worker artifacts."}
 
 
@@ -101,6 +101,8 @@ def record_gate(root, gate, evidence_path):
             require(current["gates"][dep]["status"] == "passed", f"{gate} requires {dep}")
         if gate == "C7":
             require(_has_review(current, "precision"), "record human precision review before C7")
+        if gate == "C9":
+            require(_has_review(current, "recipe"), "record human full-model recipe review before C9")
         if gate == "C10":
             require(_has_review(current, "baseline"), "record human baseline review before C10")
         identity = uuid.uuid4().hex
@@ -137,14 +139,15 @@ def record_gate(root, gate, evidence_path):
 def review(root, kind, reviewer, note):
     """Record a real human's decision. This command does not authenticate identity."""
     root = Path(root)
-    require(kind in {"baseline", "precision", "release"}, "unknown review kind")
+    require(kind in {"baseline", "precision", "recipe", "release"}, "unknown review kind")
     require(reviewer.strip() and note.strip(), "reviewer and decision rationale required")
     with lock(root):
         current = status(root)
-        gates = {"baseline": ("C1",), "precision": ("C0",), "release": tuple(DEPENDENCIES)}[kind]
+        gates = {"baseline": ("C1",), "precision": ("C0",), "recipe": ("C0", "C5", "C7", "C8"),
+                 "release": tuple(DEPENDENCIES)}[kind]
         require(all(current["gates"][g]["status"] == "passed" for g in gates), "review prerequisites incomplete")
         if kind == "release":
-            require(_has_review(current, "baseline") and _has_review(current, "precision"), "earlier human reviews missing")
+            require(all(_has_review(current, k) for k in ("baseline", "precision", "recipe")), "earlier human reviews missing")
         value = {"id": uuid.uuid4().hex, "kind": kind, "reviewer": reviewer, "note": note,
                  "created": now(), "recipe_sha256": digest(_recipe(root)),
                  "gate_ids": {g: current["gates"][g]["id"] for g in gates}}

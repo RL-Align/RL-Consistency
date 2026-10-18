@@ -10,7 +10,7 @@ from pathlib import Path
 from . import __version__
 from .common import ContractError, digest, file_hash, read_json
 from .contracts import unbound_fields, validate_recipe
-from . import adapters, workflow
+from . import adapters, workflow, rocm
 from .compare import compare_traces
 from .report import render
 from .rlk_import import import_sidecars
@@ -43,7 +43,7 @@ def parser():
         if name == "report":
             s.add_argument("--output", type=Path, required=True)
         if name == "review":
-            s.add_argument("kind", choices=("baseline", "precision", "release"))
+            s.add_argument("kind", choices=("baseline", "precision", "recipe", "release"))
             s.add_argument("--reviewer", required=True)
             s.add_argument("--note", required=True)
     compare = sub.add_parser("compare", help="compare independently captured trace files")
@@ -59,6 +59,13 @@ def parser():
     ingest.add_argument("--cp", type=int, required=True)
     ingest.add_argument("--world-size", type=int, required=True)
     ingest.add_argument("--layout", choices=("vime-zigzag",), required=True)
+    for name in ("rocm-plan", "rocm-check"):
+        command = sub.add_parser(name, help="plan/run one fixed-policy ROCm diagnostic; not C0-C10 certification")
+        command.add_argument("--profile", type=Path, required=True)
+        command.add_argument("--output", type=Path, required=True)
+        command.add_argument("--mode", choices=("native", "consistency"), default="consistency")
+    collect = sub.add_parser("rocm-report", help="collect an existing rocm-check run without launching a GPU job")
+    collect.add_argument("--run-dir", type=Path, required=True)
     for name in ("plan", "preflight", "run"):
         s = sub.add_parser(name, help=f"{name} the pinned RL-Kernel Qwen3 bridge")
         s.add_argument("--recipe", type=Path, required=True)
@@ -114,6 +121,11 @@ def main(argv=None):
             result = import_sidecars(args.source, args.output, tp=args.tp, cp=args.cp,
                                      world_size=args.world_size, layout=args.layout)
             code = 0 if result["comparison"]["passed"] else 1
+        elif args.command == "rocm-plan":
+            result = rocm.plan(args.profile, args.output, mode=args.mode)
+        elif args.command in {"rocm-check", "rocm-report"}:
+            result = rocm.run(args.profile, args.output, mode=args.mode) if args.command == "rocm-check" else rocm.collect(args.run_dir)
+            code = {"pass":0, "fail":1, "inconclusive":2}[result["verdict"]]
         else:
             recipe = read_json(args.recipe)
             params = (recipe, args.rl_kernel_root, args.profile, args.python)

@@ -1,5 +1,9 @@
 # Qwen3 integration
 
+For the runnable ROCm fixed-policy diagnostic, start with
+[rocm-quickstart.md](rocm-quickstart.md). The generic bound-recipe launcher below
+is a separate tool for already reviewed experiments, not full acceptance automation.
+
 The bridge calls `rl_engine/entrypoints/repro.py run` at the inspected RL-Kernel commit. It passes an explicit profile, runtime Python, backend, mode, training/rollout TP/CP, sampling, seeds, step count, LR, weight decay, KL, response cap and microbatch token budget. It does not install packages, download checkpoints, apply patches, start a generic model adapter or mint verification evidence.
 
 Prepare the backend-specific RL-Kernel environment and companion patches using upstream documentation. Do not mix the CUDA and ROCm patch sets. Keep all companion source checkouts clean and pinned.

@@ -1,5 +1,5 @@
 {
-  "schema": "rl-consistency.recipe.v1",
+  "schema": "rl-consistency.recipe.v2",
   "id": "qwen3-8b-vime-rocm",
   "status": "candidate",
   "model": {
@@ -9,7 +9,8 @@
     "revision": null,
     "weights_sha256": null,
     "tokenizer_sha256": null,
-    "config_sha256": null
+    "config_sha256": null,
+    "master_weights_sha256": null
   },
   "rl_kernel": {
     "repository": "https://github.com/RL-Align/RL-Kernel",
@@ -92,27 +93,35 @@
   },
   "coverage": {
     "C3": [
+      "repeat",
       "batch",
       "padding",
-      "permutation"
-    ],
-    "C4": [
+      "permutation",
       "chunk",
-      "prefill-decode"
+      "prefill-decode",
+      "mixed-scheduling",
+      "cache-state"
     ],
-    "C6": [
-      "train-rollout"
+    "C5": [
+      "old-logprob",
+      "actor-forward"
     ],
     "C7": [
       "forward-accuracy",
-      "gradient-accuracy"
+      "gradient-accuracy",
+      "optimizer-accuracy"
     ],
     "C8": [
-      "update-1",
-      "update-2"
+      "theta-0",
+      "theta-1",
+      "theta-2"
     ],
     "C9": [
-      "full-model",
+      "old-logprob",
+      "actor-forward",
+      "theta-0",
+      "theta-1",
+      "theta-2",
       "long-context",
       "checkpoint-resume"
     ]
@@ -121,5 +130,8 @@
     "Candidate template only; no RL-Consistency GPU certification exists.",
     "Accuracy tolerances and minimum comparison coverage are placeholders requiring human review before acceptance.",
     "Within-backend evidence does not establish equality between CUDA and ROCm."
-  ]
+  ],
+  "acceptance": {
+    "training_step_ratio_max": null
+  }
 }

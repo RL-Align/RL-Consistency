@@ -1,4 +1,11 @@
-# Evidence format v1
+# Evidence format v2
+
+Recipe, evidence and run schemas are v2 after alignment with PR #61551 gate
+responsibilities. Trace encoding remains v1. V1 recipes/evidence are rejected;
+create a new run and supply the additional artifacts rather than relabeling old
+results. The [gate table](../skills/train-inference-consistency/references/gates.md)
+and [adaptation notes](../skills/train-inference-consistency/references/pr61551.md)
+define the scope.
 
 ## Identities and trust
 
@@ -14,12 +21,17 @@ Gate evidence declares `execution: real`; validators cannot independently prove 
 
 ```json
 {
-  "schema": "rl-consistency.evidence.v1",
-  "gate": "C6",
+  "schema": "rl-consistency.evidence.v2",
+  "gate": "C5",
   "recipe_sha256": "<canonical bound recipe SHA256>",
   "environment_sha256": "<canonical recipe.environment SHA256>",
   "execution": "real",
-  "pairs": [{"case": "train-rollout", "left": "rollout.json", "right": "training.json"}]
+  "pairs": [
+    {"case": "old-logprob", "left": "rollout-old.json", "right": "old-logprob.json"},
+    {"case": "actor-forward", "left": "rollout-actor.json", "right": "actor-forward.json"}
+  ],
+  "runtime": "runtime.json",
+  "bindings": "bindings.json"
 }
 ```
 
@@ -55,28 +67,69 @@ artifact for C0 or observed operator bindings for C5. See [capture.md](capture.m
 The historical sidecar importer uses a separate `rl-consistency.rlk-diagnostic.v1`
 schema and does not generate gate-eligible trace identities.
 
-For C7, use producer `training` versus `reference`, different implementation fingerprints and `reference_kind: independent_mathematical`. Use the recipe's pre-reviewed `atol`/`rtol`; tolerances in result files have no effect. Both mandatory cases `forward-accuracy` and `gradient-accuracy` must be present. Declare the complete tensor/parameter set being tested in the fixture and review it; the generic toolkit cannot infer unrecorded model parameters.
+For C7, use producer `training` versus `reference`, different implementation fingerprints and `reference_kind: independent_mathematical`. Use the recipe's pre-reviewed `atol`/`rtol`; tolerances in result files have no effect. Cases `forward-accuracy`, `gradient-accuracy` and `optimizer-accuracy` must be present. Declare the complete tensor/parameter set and gradient/STE contract in the fixture; the generic toolkit cannot infer unrecorded parameters. Controlled SFT and generation quality remain separate, unimplemented acceptance items.
 
 ## Gate-specific artifacts
 
 | Gate | Envelope fields | Referenced contents |
 |---|---|---|
-| C0 | `runtime` | `clean`, `rl_kernel_commit`, `sources`, `lock_sha256`, `profile_sha256`, `python_version`, `backend`, `architecture`, `world_size`, `training`, `rollout`, `model`, `fixture_sha256`, `loaded_artifacts` |
+| C0 | `runtime`, `inventory` | Worker identities plus complete module inventory and training route |
 | C1 | `benchmark` | Native benchmark object below |
 | C2 | `coverage` | `source_config_sha256`, `source_layers`, `selected_layers`, `reduced_layers`, `boundary_operators` |
-| C3/C4/C6/C7 | `pairs` | Exactly the case IDs declared in recipe coverage |
-| C5 | `runtime`, `bindings` | Runtime identity and binding list below |
-| C8 | `pairs`, `updates` | Post-update pairs and update records below |
-| C9 | `pairs`, `full_model`, `checkpoint` | Full-model and resume records below |
+| C3/C7 | `pairs` | Exactly the case IDs declared in recipe coverage |
+| C4 | `profile` | Structural profile artifact below |
+| C5 | `runtime`, `bindings`, `pairs` | Runtime bindings plus independent old-logprob/actor forward traces |
+| C6 | `backward` | Backward inventory, saved state, contract and measured training budget |
+| C8 | `pairs`, `updates`, `loop` | theta0/theta1/theta2 comparisons and two effective master updates |
+| C9 | `pairs`, `updates`, `loop`, `full_model`, `checkpoint` | Reviewed full-model loop, dual-path entry and resume |
 | C10 | `benchmark` | Strict benchmark object; frozen C1 is loaded from the run |
 
 `loaded_artifacts` entries contain `worker` (`training` or `rollout`), `path`, `sha256`. The full target/model objects equal their recipe objects. Runtime artifacts must include both engine roles. Implement full rank coverage in the producer; maintainers verify it.
+
+`runtime` contains `clean`, `rl_kernel_commit`, `sources`, `lock_sha256`,
+`profile_sha256`, `python_version`, `backend`, `architecture`, `world_size`,
+`training`, `rollout`, `model`, `fixture_sha256`, `loaded_artifacts`.
+`inventory` contains `route` equal to the training engine, and one `modules`
+entry per recipe operator, with `operator`, `inference_implementation`,
+`training_math`, `quantization`, `discrete_choices`. Explicitly write `none`
+where applicable; do not leave unknown semantics blank.
 
 C2 source layers are ordered objects with `operators`, `dimensions`, `precision` and any layer-specific semantics (e.g. attention type). `reduced_layers` must equal the selected source layer objects; do not include a physical layer index inside a semantic layer descriptor. All operator types and adjacent semantic layer patterns must remain. `boundary_operators` equals the recipe operator inventory and includes embedding/head. The coverage object is an assertion backed by the builder's source; it is not itself proof of executing those layers.
 
 C5 bindings are a list with one entry per `(side, operator)` required by the recipe. Fields: `side`, `operator`, `observable: true`, `fallback: false`, `implementation_sha256`, `contract_sha256`. Both sides must share each operator's numerical contract, but may use distinct validated implementations. Add trace provenance/call counters in the real producer to establish that registered operators were actually invoked.
 
-C8 updates are a list of at least two records: `version`, `before_sha256`, `after_sha256`, `optimizer_state_sha256`, `gradient_nonzero: true`, `optimizer_step_executed: true`. The chain begins at recipe model weights and links consecutive versions. Each updated weight hash/version must have an independently computed parity pair in the evidence. Record complete parameter manifests and raw optimizer traces alongside these assertions for review.
+C5 and C9 training traces for `old-logprob` and `actor-forward` contain an
+`execution_path` object: `kind` equal to the case, `forward_executed: true`,
+positive `calls`, `callsite_sha256`, `model_mode` (`train`/`eval`),
+`grad_enabled` and `output_requires_grad` booleans. The actor path requires
+`train` mode and both grad flags true. Preserve the actual native old-logprob
+path's modes, rather than forcing grad on. Capture logprobs before loss transforms
+at theta0. Pass the observed receipt through `TraceWriter(execution_path=...)`.
+
+C4 `profile`: `raw_profile_sha256`, full `target`, `per_token_python_loop: false`,
+`unbounded_workspace: false`, `graph_capture_replay: true`, positive
+`peak_memory_bytes`, and `operator_shapes` entries (`operator`, positive `shape`
+dimensions, positive `calls`) covering the operator inventory. Keep the raw
+profiler output for review; booleans do not prove that profiling happened.
+
+C6 `backward`: `modules` contains one entry per operator with `strategy`
+(`reuse`/`glue`/`custom`), `rationale`, `saved_from_forward` and
+`gradient_contract_sha256`. `timing` contains full `target`, finite positive
+`native_step_seconds` and `strict_step_seconds`. The ratio must be within
+the human-reviewed recipe `acceptance.training_step_ratio_max`; it is unbound
+in candidate recipes, not a guessed performance promise.
+
+C8/C9 `updates` has exactly two records: `version`, `before_sha256`,
+`after_sha256` (deployment weights), `before_master_sha256`,
+`after_master_sha256`, `optimizer_state_sha256`, positive finite
+`master_update_norm` and `gradient_norm`, `finite_loss: true`,
+`gradient_coverage_complete: true`, `optimizer_step_executed: true`, and
+`optimizer_step` 1 then 2. Master hashes must change and form a chain starting
+at `recipe.model.master_weights_sha256`. Deployment hashes may remain unchanged
+under quantization. The `theta-0` pair uses initial weights, then `theta-1` and
+`theta-2` must match the synchronized versions and deployment hashes. `loop`
+contains `normal_exit: true`, `executed_updates: 2`, `framework_entrypoint`.
+Retain actual parameter/optimizer evidence to back all these assertions.
 
 C9 `full_model` contains `config_sha256`, `layers`, `context_tokens`, `target`; it must match the unmodified model and cover the declared maximum context. `checkpoint` contains:
 
@@ -95,4 +148,4 @@ C10 compares replayed equal work and requires equal measured step/output-token c
 
 ## Review records
 
-After a real human decision, record it with `rl-consistency review baseline --run-dir RUN --reviewer NAME --note DECISION` (replace `baseline` with `precision` or `release` when appropriate). The baseline binds C1, precision binds C0, release binds all gates. The command does not authenticate identity. Never run it with an invented approval. Changing numerical tolerances requires a new run and review.
+After a real human decision, record it with `rl-consistency review baseline --run-dir RUN --reviewer NAME --note DECISION` (replace `baseline` with `precision`, `recipe` or `release` when appropriate). Baseline binds C1; precision binds C0; recipe review binds C0/C5/C7/C8 and is required before C9; release binds all gates. The command does not authenticate identity. Never invent approval. Changing numerical tolerances or the training budget requires a new run and review.

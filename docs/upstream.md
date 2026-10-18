@@ -2,6 +2,11 @@
 
 Reference repository: https://github.com/RL-Align/RL-Kernel
 
+Workflow reference: https://github.com/vllm-project/vllm/pull/61551, inspected head
+`939215b66ce8fef6ebc2009de3d6b254bdd371ca` (merged as
+`2d8efee9a73366d6b4e753780af32443d2fef91a`). See the
+[scope adaptations](../skills/train-inference-consistency/references/pr61551.md).
+
 Pinned inspection revision: `76a127c206b7ead6fb837b46264ba43f9ef20e82`.
 
 | Source | Reuse or constraint |

@@ -28,6 +28,7 @@ adapter work.
 | `src/rl_consistency/compare.py` | Raw-bit or independent-reference comparisons |
 | `src/rl_consistency/capture.py` | Worker provenance and exact-coverage trace publication |
 | `src/rl_consistency/rlk_import.py` | Pinned Vime sidecar diagnostics, TP/CP checks; no gate promotion |
+| `src/rl_consistency/rocm.py` | Fixed-policy ROCm launch, environment checks and raw sidecar reports |
 | `src/rl_consistency/gates.py` | Gate-specific machine checks |
 | `src/rl_consistency/workflow.py` | Immutable recipes, evidence snapshots, invalidation and review records |
 | `src/rl_consistency/adapters.py` | Model/engine protocols and Qwen3 launcher bridge |

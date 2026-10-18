@@ -10,10 +10,10 @@ from .common import require, positive_int, is_hash, digest
 from .compare import compare_traces
 from .contracts import validate_recipe
 
-TITLES = ["Scope and identity", "Native baseline", "Representative reduced model",
-          "Batch invariance", "Prefill/decode and chunk invariance", "Runtime bindings",
-          "Independent train/rollout parity", "Independent gradient accuracy",
-          "Two real updates", "Full model and checkpoint resume", "Performance review"]
+TITLES = ["Module inventory and route", "Recipe and strong baseline", "Representative proxy",
+          "Inference BI/PD", "Structural performance", "Dual-path training forward parity",
+          "Backward and gradient contract", "Independent gradient validation",
+          "Proxy two-update loop", "Reviewed full-model acceptance", "Optimization and delivery"]
 DEPENDENCIES = {"C0": (), "C1": ("C0",), "C2": ("C0",), "C3": ("C2",),
                 "C4": ("C3",), "C5": ("C4",), "C6": ("C5",), "C7": ("C6",),
                 "C8": ("C7",), "C9": ("C8",), "C10": ("C1", "C9")}
@@ -65,13 +65,25 @@ def pairs(gate, evidence, recipe, artifact):
         left, right = artifact(pair["left"]), artifact(pair["right"])
         require(left["inputs_sha256"] == recipe["inputs"]["fixture_sha256"], "trace fixture mismatch")
         require(left["semantics_sha256"] == digest(recipe["comparison"]), "trace scoring contract mismatch")
-        if gate in {"C3", "C4", "C6", "C7"}:
+        if gate in {"C3", "C5", "C7"}:
             require(left["weights_sha256"] == recipe["model"]["weights_sha256"], "initial weights mismatch")
         if gate != "C7":
             require(left["dtype"] == recipe["comparison"]["dtype"], "trace output dtype differs from recipe")
-        if gate in {"C6", "C8", "C9"}:
+        if gate in {"C5", "C8", "C9"}:
             require(left["producer"] == "rollout" and right["producer"] == "training",
                     "expected independently computed rollout/training traces")
+        if gate in {"C5", "C9"} and pair["case"] in {"old-logprob", "actor-forward"}:
+            receipt = right.get("execution_path", {})
+            require(receipt.get("kind") == pair["case"] and receipt.get("forward_executed") is True
+                    and positive_int(receipt.get("calls")) and is_hash(receipt.get("callsite_sha256")),
+                    "native training callsite evidence missing")
+            require(receipt.get("model_mode") in {"train", "eval"}
+                    and type(receipt.get("grad_enabled")) is bool
+                    and type(receipt.get("output_requires_grad")) is bool, "training execution modes missing")
+            if pair["case"] == "actor-forward":
+                require(receipt["model_mode"] == "train" and receipt["grad_enabled"]
+                        and receipt["output_requires_grad"], "actor forward must execute with autograd in train mode")
+            require(left["weights_sha256"] == recipe["model"]["weights_sha256"], "theta-0 entry weights mismatch")
         if gate == "C7":
             require(left["producer"] == "training" and right["producer"] == "reference", "gradient reference missing")
             require(left["implementation_sha256"] != right["implementation_sha256"], "gradient reference reuses implementation")
@@ -83,10 +95,41 @@ def pairs(gate, evidence, recipe, artifact):
     return results
 
 
+def check_loop(evidence, recipe, artifact, comparisons):
+    """Two effective master updates, with same-policy comparisons at theta0/1/2."""
+    updates, loop = artifact(evidence["updates"]), artifact(evidence["loop"])
+    require(len(updates) == 2, "short acceptance requires exactly two effective updates")
+    require(loop.get("normal_exit") is True and loop.get("executed_updates") == 2
+            and isinstance(loop.get("framework_entrypoint"), str) and loop["framework_entrypoint"],
+            "real framework loop and normal exit required")
+    by_case = {x["case"]: x for x in comparisons}
+    initial = by_case["theta-0"]
+    require(initial["weights_sha256"] == recipe["model"]["weights_sha256"], "theta-0 comparison missing")
+    previous, master = initial["weights_sha256"], recipe["model"]["master_weights_sha256"]
+    versions = {initial["weight_version"]}
+    for step, update in enumerate(updates, 1):
+        require(update["before_sha256"] == previous and is_hash(update["after_sha256"]), "broken deployment weight chain")
+        require(update.get("before_master_sha256") == master and is_hash(update.get("after_master_sha256"))
+                and update["after_master_sha256"] != master, "master parameters did not change")
+        for key in ("master_update_norm", "gradient_norm"):
+            value = update.get(key)
+            require(type(value) in (int, float) and math.isfinite(value) and value > 0, f"invalid {key}")
+        require(update.get("finite_loss") is True and update.get("gradient_coverage_complete") is True
+                and update.get("optimizer_step_executed") is True and type(update.get("optimizer_step")) is int
+                and update["optimizer_step"] == step, "effective optimizer evidence missing")
+        require(is_hash(update.get("optimizer_state_sha256")), "optimizer state evidence missing")
+        match = by_case[f"theta-{step}"]
+        require(update["version"] not in versions and match["weight_version"] == update["version"]
+                and match["weights_sha256"] == update["after_sha256"], "post-sync theta comparison missing")
+        versions.add(update["version"])
+        previous, master = update["after_sha256"], update["after_master_sha256"]
+    return {"updates": updates, "loop": loop}
+
+
 def evaluate(gate, evidence, recipe, artifact, baseline=None):
     validate_recipe(recipe, bound=True)
     require(gate in DEPENDENCIES, "unknown gate")
-    require(evidence.get("schema") == "rl-consistency.evidence.v1", "unsupported evidence schema")
+    require(evidence.get("schema") == "rl-consistency.evidence.v2", "evidence v2 required; old gate meanings cannot be reused")
     require(evidence.get("gate") == gate, "evidence gate mismatch")
     require(evidence.get("recipe_sha256") == digest(recipe), "evidence belongs to a different recipe")
     require(evidence.get("environment_sha256") == digest(recipe["environment"]), "evidence environment mismatch")
@@ -97,7 +140,16 @@ def evaluate(gate, evidence, recipe, artifact, baseline=None):
         check_runtime(runtime, recipe)
         require(runtime.get("model") == recipe["model"], "worker model identity mismatch")
         require(runtime.get("fixture_sha256") == recipe["inputs"]["fixture_sha256"], "worker fixture mismatch")
-        detail = {"runtime": runtime}
+        inventory = artifact(evidence["inventory"])
+        modules = inventory.get("modules", [])
+        require(inventory.get("route") == recipe["target"]["training"]["engine"], "training route mismatch")
+        require(len(modules) == len(recipe["operators"]) and {m["operator"] for m in modules} == set(recipe["operators"]),
+                "module inventory incomplete")
+        for module in modules:
+            require(all(isinstance(module.get(k), str) and module[k] for k in
+                        ("inference_implementation", "training_math", "quantization", "discrete_choices")),
+                    "module arithmetic/quantization/selection inventory missing")
+        detail = {"runtime": runtime, "inventory": inventory}
     elif gate == "C1":
         value = artifact(evidence["benchmark"])
         require(value.get("mode") == "native", "C1 requires a native baseline")
@@ -123,6 +175,36 @@ def evaluate(gate, evidence, recipe, artifact, baseline=None):
         require(set(zip(kinds, kinds[1:])) <= set(zip(kept, kept[1:])), "reduced model misses layer interactions")
         require(value.get("boundary_operators") == recipe["operators"], "embedding/head and operator boundary coverage missing")
         detail = {"selected_layers": selected, "operators": sorted(covered)}
+    elif gate == "C4":
+        profile = artifact(evidence["profile"])
+        require(is_hash(profile.get("raw_profile_sha256")) and profile.get("target") == recipe["target"],
+                "profile identity/target missing")
+        require(profile.get("per_token_python_loop") is False and profile.get("unbounded_workspace") is False
+                and profile.get("graph_capture_replay") is True, "structural execution defect or missing Graph evidence")
+        shapes = profile.get("operator_shapes", [])
+        require({x["operator"] for x in shapes} == set(recipe["operators"]), "profile operator coverage incomplete")
+        for item in shapes:
+            require(item.get("shape") and all(positive_int(x) for x in item["shape"])
+                    and positive_int(item.get("calls")), "real shape/call-count profile missing")
+        require(positive_int(profile.get("peak_memory_bytes")), "profile peak memory missing")
+        detail = {"profile": profile}
+    elif gate == "C6":
+        backward = artifact(evidence["backward"])
+        modules = backward.get("modules", [])
+        require(len(modules) == len(recipe["operators"]) and {x["operator"] for x in modules} == set(recipe["operators"]),
+                "backward inventory incomplete")
+        for item in modules:
+            require(item.get("strategy") in {"reuse", "glue", "custom"} and item.get("rationale")
+                    and item.get("saved_from_forward") and is_hash(item.get("gradient_contract_sha256")),
+                    "backward/STE contract or saved-state mapping missing")
+        timing = backward.get("timing", {})
+        require(timing.get("target") == recipe["target"], "training timing topology mismatch")
+        for key in ("native_step_seconds", "strict_step_seconds"):
+            value = timing.get(key)
+            require(type(value) in (int, float) and math.isfinite(value) and value > 0, "training timing missing")
+        ratio = timing["strict_step_seconds"] / timing["native_step_seconds"]
+        require(ratio <= recipe["acceptance"]["training_step_ratio_max"], "training step exceeds reviewed budget")
+        detail = {"backward": backward, "training_step_ratio": ratio}
     elif gate == "C5":
         runtime = artifact(evidence["runtime"])
         check_runtime(runtime, recipe)
@@ -136,27 +218,12 @@ def evaluate(gate, evidence, recipe, artifact, baseline=None):
         for op in recipe["operators"]:
             contracts = {b["contract_sha256"] for b in bindings if b["operator"] == op}
             require(len(contracts) == 1, f"numerical contracts differ: {op}")
-        detail = {"bindings": bindings, "runtime": runtime}
-    elif gate in {"C3", "C4", "C6", "C7", "C8", "C9"}:
+        detail = {"bindings": bindings, "runtime": runtime,
+                  "comparisons": pairs(gate, evidence, recipe, artifact)}
+    elif gate in {"C3", "C7", "C8", "C9"}:
         detail = {"comparisons": pairs(gate, evidence, recipe, artifact)}
-        if gate == "C8":
-            updates = artifact(evidence["updates"])
-            require(len(updates) >= 2, "C8 requires at least two real optimizer updates")
-            previous = recipe["model"]["weights_sha256"]
-            versions = set()
-            for update in updates:
-                require(update["before_sha256"] == previous, "broken optimizer update chain")
-                require(is_hash(update["after_sha256"]) and update["after_sha256"] != previous, "weights did not change")
-                require(is_hash(update.get("optimizer_state_sha256")), "optimizer state evidence missing")
-                require(update.get("gradient_nonzero") is True and update.get("optimizer_step_executed") is True,
-                        "real update evidence missing")
-                require(update["version"] not in versions, "duplicate weight version")
-                versions.add(update["version"])
-                matches = [x for x in detail["comparisons"] if x["weight_version"] == update["version"]
-                           and x["weights_sha256"] == update["after_sha256"]]
-                require(matches, "missing independent train/rollout comparison after an update")
-                previous = update["after_sha256"]
-            detail["updates"] = updates
+        if gate in {"C8", "C9"}:
+            detail.update(check_loop(evidence, recipe, artifact, detail["comparisons"]))
         if gate == "C9":
             full = artifact(evidence["full_model"])
             require(full.get("config_sha256") == recipe["model"]["config_sha256"] and

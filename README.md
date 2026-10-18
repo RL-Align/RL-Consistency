@@ -4,6 +4,15 @@ Reusable agent skills and evidence tooling for bitwise train–inference consist
 
 **Status: initial development toolkit. No recipe in this repository is GPU-certified.**
 
+**Run on ROCm:** [Qwen3-8B / 8×MI300X quickstart](docs/rocm-quickstart.md).
+`rocm-check` now launches a fixed-policy diagnostic and collects raw comparison
+results into JSON/HTML. It uses an existing prepared RL-Kernel environment.
+
+Workflow v2 aligns C0–C10 responsibilities with [vLLM PR #61551](https://github.com/vllm-project/vllm/pull/61551),
+including dual training paths and theta0/theta1/theta2 acceptance. Read the
+[explicit adaptations and gaps](skills/train-inference-consistency/references/pr61551.md).
+Old v1 evidence is not automatically relabeled or accepted.
+
 This project turns a consistency investigation into a repeatable C0–C10 workflow: freeze a strong native baseline, use a representative reduced model to find numerical problems, compare independently computed rollout/training outputs, check independent references, perform real updates, validate the full model and checkpoint resume, then measure performance.
 
 ## What works in this first version

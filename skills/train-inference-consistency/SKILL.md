@@ -7,6 +7,10 @@ description: Develop and audit bitwise train–inference consistency using RL-Ke
 
 Treat RL-Consistency as an evidence workflow and RL-Kernel as the numerical implementation. Never infer model certification from an installed skill, a successful launcher, a repository directory, or a `status: verified` field.
 
+Use workflow v2, aligned to the gate responsibilities of vLLM PR #61551. Read
+[the reference and ROCm adaptations](references/pr61551.md); do not copy its CUDA,
+framework or benchmark choices into a different user environment without review.
+
 ## Begin
 
 1. Read the target repository's instructions and `docs/architecture.md`. Inspect the actual model, engine versions, hardware and user-requested comparison scope.
@@ -21,16 +25,16 @@ Treat RL-Consistency as an evidence workflow and RL-Kernel as the numerical impl
 - Delegate one agent to native baseline tuning and another to consistency work when the host supports agents and the user has authorized that work. Share fixed workload requirements, not writable baseline measurements. If delegation is unavailable, run the roles sequentially with the same isolation.
 - Read [baseline-policy.md](references/baseline-policy.md) before C1/C10. Freeze the baseline after its human review. Do not slow the native path, cherry-pick runs, change work, or hide failures to improve the comparison.
 - Construct a reduced model by selecting source layers, preserving operator dimensions, quantization and relevant layer transitions. Usually 4–6 layers suffice; increase the count when coverage demands it. Do not weaken RL-Kernel's existing full-model specification to create a small model.
-- Recompute training logprobs independently from rollout tokens at the same weight version. Reusing rollout logprob values is not verification. Match masks, positions, sampling/support semantics and logical ordering first.
+- At C5 compare two actual paths separately: native old-logprob recomputation and the grad-enabled actor forward, each against rollout at the same weight version. Record model/grad modes, output requires_grad and executed callsite. Reusing rollout values or substituting a diagnostic forward is not verification.
 - Read [debugging.md](references/debugging.md) for a mismatch. Preserve the failing inputs, find the earliest differing intermediate in declared execution order, and correct the first cause. Do not relax bitwise acceptance, change the baseline, or stop at matching generated tokens.
 - Run independent mathematical forward and gradient references. A reference with the same fixed reduction tree checks consistency only; it is not sufficient evidence of numerical accuracy.
-- Perform at least two real optimizer updates. Compare both sides again after each weight synchronization. Keep each comparison within one weight version. Never compare stale rollout scores against an updated policy and call the expected difference a consistency failure.
+- Complete theta0 compare → effective update → theta1 compare → effective update → theta2 compare, with normal exit. Check finite/nonzero gradients and complete master parameter change; deployment bytes may stay unchanged after quantization. Keep every comparison within one weight version.
 - Validate the full model, declared context/topology matrix, and restored checkpoint's first forward/update. Preserve model, optimizer, scheduler, RNG and data cursor state. Saving or loading alone does not pass.
 - Record the exact source/binary artifacts loaded by each worker and the actual operator routes. Reject unsupported routes and fallback. Do not substitute a source checkout SHA for loaded-worker provenance.
 
 ## Human decisions
 
-Follow [release-policy.md](references/release-policy.md). Human baseline, precision and final recipe reviews remain explicit. The `review` command records an existing decision; it does not authenticate a person. Do not invent a reviewer or record an approval that the user has not given. Continue all authorized development and diagnostics while a review is pending.
+Follow [release-policy.md](references/release-policy.md). Human baseline, precision, pre-C9 recipe and final release reviews remain explicit. The `review` command records an existing decision; it does not authenticate a person. Do not invent a reviewer or record an approval that the user has not given. Continue all authorized development and diagnostics while a review is pending.
 
 ## Report
 
@@ -38,4 +42,4 @@ Use `scripts/summarize_run.py` to create HTML and inspect `status`. Report the d
 
 ## Current integration boundary
 
-The Qwen3 bridge generates and executes the pinned RL-Kernel `run` command after host preflight. Native engine trace producers, generalized model adapters, automatic reduced-model construction and a hosted verified-recipe registry remain extension work. Use the existing upstream adapters and implement concrete producers in the actual engine workers; never replace these missing components with dummy successful outputs.
+Use `rocm-plan` and `rocm-check` with `docs/rocm-quickstart.md` for an explicitly requested ROCm fixed-policy diagnostic. It retains the real upstream sidecars, validates rank/token coverage and reports a scoped raw-byte verdict; it does not pass C5 or C8/C9. The generic Qwen3 `run` bridge remains available for reviewed experiments. Full dual-path producers, generalized model adapters, automatic proxy construction and a signed recipe registry remain extension work. Never replace missing components with dummy successful outputs.

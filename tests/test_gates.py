@@ -26,10 +26,10 @@ class GateTests(unittest.TestCase):
 
     def test_no_self_comparison(self):
         with self.assertRaises(ContractError):
-            self.run_gate('C6', lambda e,a: e['pairs'][0].update(right=e['pairs'][0]['left']))
+            self.run_gate('C5', lambda e,a: e['pairs'][0].update(right=e['pairs'][0]['left']))
 
     def test_bitwise_mismatch_is_failed_verdict(self):
-        result = self.run_gate('C6', lambda e,a: a['train-rollout-right.json']['records'][0].update(hex='00000000'))
+        result = self.run_gate('C5', lambda e,a: a['actor-forward-right.json']['records'][0].update(hex='00000000'))
         self.assertFalse(result['passed'])
 
     def test_no_fallback(self):
@@ -50,7 +50,35 @@ class GateTests(unittest.TestCase):
 
     def test_changed_weights_required(self):
         with self.assertRaises(ContractError):
-            self.run_gate('C8', lambda e,a: a['updates.json'][0].update(after_sha256='1'*64))
+            self.run_gate('C8', lambda e,a: a['updates.json'][0].update(after_master_sha256='1'*64))
+
+    def test_deployment_bytes_can_stay_constant_after_master_update(self):
+        def modify(e,a):
+            for update in a['updates.json']: update.update(before_sha256='1'*64,after_sha256='1'*64)
+            for case in ('theta-1','theta-2'):
+                for side in ('left','right'): a[f'{case}-{side}.json']['weights_sha256']='1'*64
+        self.assertTrue(self.run_gate('C8',modify)['passed'])
+
+    def test_actor_no_grad_and_missing_old_path_fail(self):
+        with self.assertRaises(ContractError):
+            self.run_gate('C5', lambda e,a: a['actor-forward-right.json']['execution_path'].update(grad_enabled=False))
+        with self.assertRaises(ContractError):
+            self.run_gate('C5', lambda e,a: e['pairs'].pop(0))
+
+    def test_theta2_and_normal_exit_are_required(self):
+        with self.assertRaises(ContractError): self.run_gate('C8',lambda e,a:e['pairs'].pop())
+        with self.assertRaises(ContractError):
+            self.run_gate('C8',lambda e,a:a['loop.json'].update(normal_exit=False))
+
+    def test_profile_and_backward_budget_failures(self):
+        with self.assertRaises(ContractError):
+            self.run_gate('C4', lambda e,a:a['profile.json'].update(per_token_python_loop=True))
+        with self.assertRaises(ContractError):
+            self.run_gate('C6',lambda e,a:a['backward.json']['timing'].update(strict_step_seconds=10.0))
+
+    def test_v1_evidence_cannot_relabel_old_gate(self):
+        with self.assertRaises(ContractError):
+            self.run_gate('C5',lambda e,a:e.update(schema='rl-consistency.evidence.v1'))
 
     def test_resume_state_and_first_update_checked(self):
         for key, value in [('resumed_first_step',False),('resumed_after_update_sha256','f'*64)]:

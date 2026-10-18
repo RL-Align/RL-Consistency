@@ -1,6 +1,14 @@
-# RL-Consistency 第一版
+# RL-Consistency
 
 这是 RL-Kernel 上层的通用 Skill 和验收工具。Skill 规定开发顺序，工具检查证据，底层数值计算继续由 RL-Kernel 承担。
+
+**现在上 ROCm 跑：直接看 [实机运行步骤](rocm-quickstart.md)。** 配好已有环境路径后，
+`rocm-plan` 看设置，`rocm-check` 启动真实固定策略诊断并自动生成 JSON/HTML。
+
+C0–C10 已按 vLLM PR #61551 的职责调整为 v2，补了 C5 双路径、C4 结构性能、
+C6 backward/STE、θ0/θ1/θ2 和 full-model 前的 recipe review。实现选择继续适配
+RL-Kernel/vime/ROCm；Rust Bench 等参考 PR 的专用部分尚未实现，不能声称完整等同。
+旧 v1 recipe/evidence 不兼容新 gate 定义，需要新建运行，不能直接改编号。
 
 目前已经实现：命令行、配置检查、C0–C10 证据验收、逻辑 token 对齐后的原始位比较、依赖失效处理、人工审核记录、HTML 报告，以及调用现有 Qwen3/vime 启动器的桥接代码。
 

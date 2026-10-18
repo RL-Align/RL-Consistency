@@ -1,6 +1,6 @@
 # Human review and recipe release
 
-Record baseline review after native tuning, precision review after the numerical scope/tolerances are fixed, and final review only after all required gates pass. Each record binds the recipe and gate attempt IDs. A rerun invalidates decisions whose bound evidence changed.
+Record baseline review after native tuning, precision review after the numerical scope/tolerances and training budget are fixed, recipe review after proxy C5/C7/C8 and before full-model C9 acceptance, and release review only after all required gates pass. Each record binds the recipe and gate attempt IDs. A rerun invalidates decisions whose bound evidence changed.
 
 The local `review` CLI is a declaration recorder, not identity verification or a cryptographic signature. The agent must have the actual human decision before calling it. Final maintainers must inspect real worker traces, manifests, independent reference provenance and benchmark raw data. JSON producer assertions alone cannot prove that GPU work happened.
 
