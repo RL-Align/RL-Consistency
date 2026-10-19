@@ -1,5 +1,7 @@
 # Qwen3-30B-A3B：第三模型接入
 
+For the independent shared backend, start with [independent-runtime.md](independent-runtime.md). The engine integration/preparation described below is the optional legacy route; its status does not describe the independent executor.
+
 已实现模型配置检查、MoE 算子清单、proxy 准备、CUDA/ROCm 候选配方，以及
 C3/C5/C8/C9 的路由证据检查。**当前是 skill 接入和验收工具，尚未实现完整
 MoE strict runtime，也没有 GPU 验收结果。** `prepare-model` 不启动 GPU、

@@ -1,5 +1,7 @@
 # Qwen3 integration
 
+For the independent shared backend, start with [independent-runtime.md](independent-runtime.md). The engine integration/preparation described below is the optional legacy route; its status does not describe the independent executor.
+
 For the runnable ROCm fixed-policy diagnostic, start with
 [rocm-quickstart.md](rocm-quickstart.md). The generic bound-recipe launcher below
 is a separate tool for already reviewed experiments, not full acceptance automation.

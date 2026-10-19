@@ -1,5 +1,7 @@
 # Qwen3.8-27B：第二模型接入
 
+For the independent shared backend, start with [independent-runtime.md](independent-runtime.md). The engine integration/preparation described below is the optional legacy route; its status does not describe the independent executor.
+
 本版本已实现 **Qwen3.8-27B 的 skill 接入和 CPU 准备工具**：真实 config 检查、
 Hybrid 算子清单、proxy 配置、CUDA/ROCm 候选配方、模型专用验收约束，以及
 独立 FP64 GDN recurrence 精度参考。

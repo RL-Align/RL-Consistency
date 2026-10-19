@@ -1,5 +1,7 @@
 # Workflow scope and integration boundaries
 
+This document describes the advanced C0–C10 engine workflow. For the default independent shared runtime, use [independent-runtime.md](independent-runtime.md); its fixture-scoped reports never automatically pass these gates.
+
 Apply C0–C10 to one bound model, environment and numerical contract. Use the
 user's framework and hardware, preserve the declared comparison scope, and
 collect evidence from actual workers. Model preparation and a successful
@@ -21,7 +23,7 @@ Keep these implementation boundaries explicit:
 | Area | RL-Consistency scope |
 |---|---|
 | Framework integration | Existing Qwen3/vime/Megatron/vLLM integration; additional framework routes need their own adapters and evidence |
-| Numerical providers | Use reviewed backend-specific RL-Kernel providers; inspect actual loaded code and binary artifacts |
+| Numerical providers | Bind the actual numerical provider and inspect loaded code/binaries. Existing bundled legacy recipes bind RL-Kernel; independent runtime reports have a separate contract and cannot be relabeled as those recipes. |
 | Performance | Replayed equal-work RL-step timing and memory; serving benchmarks need separate implementation and evidence |
 | Quality/SFT controls | Report separately; synthetic tests and short logprob runs cannot establish quality |
 | Delivery environment | Record actual environment identity; this repository does not build or certify a complete runtime image |

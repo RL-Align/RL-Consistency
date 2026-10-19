@@ -1,67 +1,47 @@
 # Architecture
 
+The default product is independent: an agent skill selects a model adapter and a shared trainable executor, then inspects measured parity. RL-Kernel is not required by this route.
+
 ```mermaid
 flowchart TD
-  S[Agent skill] --> W[Workflow and evidence gates]
-  R[Bound recipe] --> W
-  W --> E[Evidence snapshots and reports]
-  R --> P[Qwen3 execution plan]
-  P --> K[Existing RL-Kernel launcher]
-  K --> T[Training engine]
-  K --> I[Rollout engine]
-  T --> C[Worker-side capture adapters]
-  I --> C
-  C --> W
+  S[Agent skill] --> A[Model adapter]
+  A --> R[Shared prefix executor]
+  R --> G[Generation observations]
+  R --> O[Independent recomputation]
+  R --> T[Actor forward and backward]
+  G --> V[Bitwise checks]
+  O --> V
+  T --> V
+  V --> E[Scoped report or failure]
 ```
 
-Worker-side capture adapters are an integration task in this release, not automatic instrumentation. They must observe actual loaded kernels, logical tokens and weight versions in the actual engine workers.
-
-The explicit capture API and the historical sidecar diagnostic importer are
-implemented; [capture.md](capture.md) describes their boundaries. Engine hook
-installation, weight observation and distributed evidence assembly remain
-adapter work.
+`shared-prefix-v1` fixes physical batch size one, uses no cache, and recomputes each logical prefix through eager, grad-enabled provider code. Its intentionally narrow contract and performance costs are documented in [independent-runtime.md](independent-runtime.md). Model names do not grant acceptance; all three full-model GPU statuses remain pending.
 
 | Path | Responsibility |
 |---|---|
-| `skills/train-inference-consistency/` | Agent workflow, boundaries and debugging practice |
-| `src/rl_consistency/contracts.py` | Bound model/environment/coverage contract |
-| `src/rl_consistency/compare.py` | Raw-bit or independent-reference comparisons |
-| `src/rl_consistency/capture.py` | Worker provenance and exact-coverage trace publication |
-| `src/rl_consistency/diagnostics/` | Native module inventory/hooks, bounded binary snapshots, semantic DAG localization, callable replay and comparison matrices |
-| `src/rl_consistency/rlk_import.py` | Pinned Vime sidecar diagnostics, TP/CP checks; no gate promotion |
-| `src/rl_consistency/rocm.py` | Fixed-policy ROCm launch, environment checks and raw sidecar reports |
-| `src/rl_consistency/gates.py` | Gate-specific machine checks |
-| `src/rl_consistency/workflow.py` | Immutable recipes, evidence snapshots, invalidation and review records |
-| `src/rl_consistency/adapters.py` | Model/engine protocols and Qwen3 launcher bridge |
-| `src/rl_consistency/models/qwen38.py` | Hybrid Dense config inventory, proxy specification and model-specific gate checks |
-| `src/rl_consistency/models/gdn_reference.py` | CPU FP64 GDN core accuracy reference with autograd |
-| `src/rl_consistency/model_setup.py` | Read-only inspection and new model preparation bundles; no GPU launcher |
-| `src/rl_consistency/report.py` | Escaped, offline HTML |
-| `src/rl_consistency/recipes/` | Packaged candidate recipes |
-| `tests/` | Synthetic CPU regression tests; not numerical certification |
+| `skills/train-inference-consistency/` | Select independent execution, native diagnosis or advanced verification |
+| `src/rl_consistency/runtime/models.py` | Independent model registry, config checks, safetensors loading and provider identity |
+| `src/rl_consistency/runtime/execution.py` | Shared generation/recompute/actor path, original-byte capture, state guards and mismatch handling |
+| `src/rl_consistency/runtime/runner.py` | Fixture checks, actual calibration updates and retained reports |
+| `src/rl_consistency/diagnostics/` | Native hooks, semantic DAG localization, binary snapshots, repeat checks, replay and HTML matrices |
+| `src/rl_consistency/compare.py` | Formal trace comparisons and independent-reference tolerances |
+| `src/rl_consistency/capture.py` | Worker identity and exact-coverage trace publication |
+| `src/rl_consistency/contracts.py`, `gates.py`, `workflow.py` | Existing C0–C10 contracts, evidence validation, invalidation and review records |
+| `src/rl_consistency/models/`, `model_setup.py` | Source-preserving proxy config preparation and model-specific formal gate requirements |
+| `src/rl_consistency/adapters.py`, `rocm.py`, `rlk_import.py` | Optional legacy RL-Kernel launch and sidecar compatibility |
+| `src/rl_consistency/recipes/` | Existing candidate vime recipes for the legacy engine workflow |
+| `tests/test_runtime.py` | Real tiny provider architectures; no full-model certification |
 
-No RL-Kernel code is vendored. Reuse canonical `rl_engine/contracts`, `runtime`, `integrations`, `validation`, `models` and `distributed` APIs when adding engine capture. Keep new numerical implementations upstream in RL-Kernel.
+## Separate result scopes
 
-## State and invalidation
+Runtime reports (`runtime-check.v1`), native diagnostics (`diagnostic-trace.v1`) and formal workflow evidence (`evidence.v2`) have different meanings. Runtime equality or native diagnostic matches cannot advance C0–C10. Existing vime recipes still bind their RL-Kernel and framework identities; the independent runtime does not consume those recipes or manufacture equivalents.
 
-A run snapshots one bound recipe and its hash. Each attempt snapshots its evidence and referenced JSON artifacts, hashes them, binds prerequisite attempt IDs, and records its machine verdict. Retrying a prerequisite changes its ID, invalidating descendants and reviews tied to old attempts. Modifying copied artifacts invalidates their attempt. Never repair snapshots in place.
+A formal workflow snapshots one bound recipe. Retrying prerequisite gates invalidates descendants and reviews tied to old attempts. Source/model/environment changes need fresh evidence. Reports and hashes detect ordinary drift, not malicious rewriting of an entire evidence set. Reviewer names are declarations, not authentication.
 
-`flock` serializes workflow writes on POSIX hosts; these operations target Linux accelerator environments and macOS developer machines. Do not share one run directory over storage whose locks are unreliable. Standalone diagnostics have a bounded, content-addressed binary tensor store; asynchronous large-model capture and distributed producer transport remain future work.
+## Extension boundaries
 
-The manifest/result hash scheme detects ordinary drift; it is not tamper-proof against a person who can rewrite the whole run. Local reviewer names are declarations. A future registry needs authenticated approval and artifact signing.
+For another model using covered operators, add its checkpoint/config adapter and architecture tests to the common executor. New stateful operations, quantization, distributed execution or engine routes need explicit numerical and capture work. Existing source-preserving proxies used for formal acceptance are distinct from tiny architecture tests used in CI.
 
-## Model extension
+The native [diagnostic matrix](diagnostics.md) can locate observed divergence before model registration. Explicit semantic mappings and actual engine hooks are still required; generic hooks do not infer fused internals. The shared runtime captures decoder layer hashes and actual MoE router outputs, which locate an observed boundary but do not prove the internal root cause.
 
-Native diagnosis can precede model registration. See [diagnostics.md](diagnostics.md):
-explicit semantic boundaries, independent repeats and a declared dependency graph
-locate the earliest observed divergent frontier. `diagnostic-trace.v1` is a
-separate format from formal `trace.v1`; diagnostic results never advance gates.
-Generic hooks do not infer fused semantics or install themselves in engine workers.
-
-Implement a topology/operator inventory, a reduced-model builder preserving original dimensions and precision, and semantic boundaries for tracing. Implement worker-side engine capture and full-model/optimizer/checkpoint evidence production. Add real coverage cases and tests, then repeat C0–C10. Do not assume an empty adapter directory means support.
-
-GPU launch commands deliberately accept only the Qwen3-8B/vime/vLLM/Megatron path.
-The second model, Qwen3.8-27B, has a working CPU preparation adapter with Hybrid
-coverage requirements; its strict providers, engine capture and launch bridge
-are pending. Cross-hardware, MoE router replay, PD separation and other frameworks
-need explicit adapter and contract work.
+A faster provider may later add invariant kernels, cache execution and sharding. It must retain the same stated comparison contract or declare a new scope, with actual model/environment validation. There is no automatic dependency on an external kernel project for implementing such providers here.

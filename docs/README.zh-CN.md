@@ -1,67 +1,47 @@
 # RL-Consistency
 
-这是 RL-Kernel 上层的通用 Skill 和验收工具。Skill 规定开发顺序，工具检查证据，底层数值计算继续由 RL-Kernel 承担。
+项目定位：**独立的一致性执行后端 + 模型适配器 + 开箱运行的 skill**。默认入口不需要安装 RL-Kernel，也不要求 vLLM 或 Megatron。
+
+公共后端负责控制数值执行、独立重算、逐位比较和失败处理；模型适配器负责识别结构、加载真实权重、声明状态与路由观察点。已有算子覆盖的模型复用公共后端，新增算子仍需要开发和验证。
 
 ## 模型支持与绝对一致性状态
 
-| 模型 | 架构 | CUDA 接入 | ROCm 接入 | 本仓库绝对一致性验证状态 |
-|---|---|---|---|---|
-| [Qwen3-8B](qwen3.md) | Dense | 启动器已接入 | [固定策略诊断可运行](rocm-quickstart.md) | 完整 C0–C10 验收待完成 |
-| [Qwen3.8-27B](qwen38.md) | Hybrid Dense，文本路径 | 配置准备已接入 | 配置准备已接入 | 严格运行时与 GPU 验收待完成 |
-| [Qwen3-30B-A3B](qwen3-moe.md) | MoE，128 专家 / top-8 | 配置准备已接入 | 配置准备已接入 | 严格运行时与 GPU 验收待完成 |
+| 模型 | 独立运行路径 | 已完成的自动化验证 | 完整模型 CUDA / ROCm 绝对一致性 |
+|---|---|---|---|
+| Qwen3-8B，Dense | 生成、独立 old-logprob 重算、actor forward/backward | 小型真实架构 FP32/BF16 CPU 逐位比较、权重加载、两次有效更新 | 待验收 / 待验收 |
+| Qwen3.8-27B，Hybrid Dense 文本路径 | 同一后端，完整前缀 GDN；按实际 `qwen3_5` 配置接入 | 小型真实架构 FP32/BF16 比较、嵌套 checkpoint 文本权重加载、两次有效更新 | 待验收 / 待验收 |
+| Qwen3-30B-A3B，MoE | 同一后端，额外比较独立路由 ID、权重与 logits | 小型真实架构 FP32/BF16 比较、权重加载、两次有效更新 | 待验收 / 待验收 |
 
-这里的**绝对一致性（bitwise）**指：在声明的模型、后端和环境范围内，
-同一权重版本的 rollout 与 training 独立计算所得 logprob 原始字节完全相等。
-MoE 还需检查独立路由的专家选择、路由权重原始位和 dispatch/combine 收据。
+小型架构测试使用 Transformers 的真实模型实现、缩小维度和随机权重，**不能当成上述完整模型的验收结果**。当前没有模型可宣称已经在本仓库完成完整 ROCm 绝对一致性验收。
 
-表格记录本仓库的接入与验收状态，目前没有配方完成 GPU C0–C10 全流程验收。
-Qwen3-8B 复用 RL-Kernel 已有集成，每份绑定配方仍须保留自己的实机证据。
-另外两个模型通过 `prepare-model` 生成 proxy 配置和候选配方，尚不启动 GPU；
-Hybrid 默认 8 层，MoE 默认 4 层并保留 128 专家/top-8。CUDA 与 ROCm 分别验收。
+## 直接运行
 
-## 工作流与工具
+在隔离环境中先安装对应平台的 PyTorch；AMD 使用 ROCm 版。然后执行：
 
-**未适配模型也可以先定位。** 新增[通用首个分歧定位器](diagnostics.md)，
-保留两侧原生实现，显式映射语义边界，按依赖图定位，输出可展开的矩阵。
-它检查同侧重复稳定性、输入/输出和状态指纹，并可调用原始实现做同输入局部重放。
-不要求先注册模型或替换 RL-Kernel 算子；实际引擎仍需接入边界采集。
+```bash
+python -m pip install -e '.[runtime]'
+rl-consistency runtime-models
 
-有 PyTorch 时运行 `rl-consistency diagnostic-demo --output runs/diagnostic-demo-001`，
-即可看到“中间不一致、最终又相同”的 CPU 合成案例（预期退出码 1）。
-矩阵位于 `runs/diagnostic-demo-001/report/matrix.html`。真实模型通过
-`rl-consistency diagnose --matrix <manifest.json> --output <新目录>` 分析采集结果。
-诊断可用与模型绝对一致性验收是两个状态，上表的验收范围保持适用。
+rl-consistency runtime-check \
+  --model Qwen/Qwen3-8B \
+  --checkpoint /models/Qwen3-8B \
+  --fixture examples/runtime-tokens.json \
+  --device cuda:0 --dtype bfloat16 \
+  --max-new-tokens 2 --output runs/qwen3-independent-001
+```
 
-C0–C10 工作流包含 C5 双路径、C4 结构性能、C6 backward/STE、θ0/θ1/θ2
-和完整模型运行前的 recipe review。详见
-[gate 定义](../skills/train-inference-consistency/references/gates.md)与
-[工作流范围](../skills/train-inference-consistency/references/workflow-scope.md)。
-旧 v1 recipe/evidence 需要按 v2 要求新建运行。
+ROCm 同样使用 `cuda:0`。换模型只需更换 `--model`、真实本地 checkpoint 和输出目录。也可将 `--fixture` 换成 `--prompt '解释一下浮点数运算。'`，使用 checkpoint 中的 tokenizer。
 
-目前已经实现：命令行、配置检查、C0–C10 证据验收、逻辑 token 对齐后的原始位比较、依赖失效处理、人工审核记录、HTML 报告，以及调用现有 Qwen3/vime 启动器的桥接代码。
+增加 `--updates 2` 会执行两次真实 SGD 校准更新，并分别检查 θ0/θ1/θ2。同一 θ 内比较；不会拿不同权重版本的输出比较。这是基于生成 token 的负对数似然校准，不是完整 RL 训练，也不保存训练后 checkpoint。
 
-新增了真实产物接入：`import-rlk` 读取已有 `.pt` sidecar，检查 TP 副本、CP 分片、loss mask 和逐 token 位差异；`TraceWriter` 在 worker 内导出带身份信息、预期覆盖检查的 trace，`worker_manifest` 记录已加载模块和共享库的文件指纹。详见 [采集接入说明](capture.md)。API 已可用，尚未自动注入 vLLM/Megatron。
+`result.json` 记录输入、权重与实现身份、比较范围和结果；每个 θ 保存生成时的原始观察值以及独立重算结果。退出码 0 表示当前用例观察值完全相等；1 表示不一致；2 表示错误或不支持。没有“忽略误差继续通过”的选项。
 
-旧 sidecar 没有完整权重版本、稳定样本身份和执行来源，导入后只生成诊断报告，不会自动通过验收。`call_index` 也不能当作 optimizer step。
+## 首版实现范围
 
-目前没有完成：GPU 端到端验证、引擎自动采集器、proxy 权重物化、Hybrid/MoE 数值运行时、已认证配置发布。三个模型的六份 CUDA/ROCm 配方都是 candidate。仓库已有的 Qwen3 成果是接入基础，不能替代本项目固定版本后的重新验收。
+`shared-prefix-v1` 固定单设备、物理 batch=1、eager attention/experts、不使用 KV cache，每个 token 都重新计算完整前缀。生成、重算、actor 都在 eval 模式下启用 autograd，只有 actor 执行反向传播。比较原始字节，包括 signed zero；不是仅比较生成文本。
 
-## 第一次怎么用
+这一版优先建立共同执行路径，吞吐较低，完整前缀重算、状态哈希和 CPU 采集都有开销。eager attention、权重和梯度需要足够显存，27B/30B 可能无法在单卡完成；当前不会自动切换成多卡或 offload。环境中不能安装 `kernels`，Hybrid 还排除 `fla`、`causal_conv1d`，防止自动选择另一套数值实现。
 
-1. 安装：`python -m pip install -e .`。
-2. 用 `rl-consistency list` 查看候选配置，用 `export-recipe` 导出本地配置。
-3. 填入实际模型、权重、数据、源码、运行环境和机器 profile 的身份。用 `check --bound` 检查。
-4. 接入真实引擎采集器，生成 `docs/evidence-format.md` 约定的原始数据。
-5. `init` 创建一个运行目录，`gate C0` 开始检查；基线 C1 与一致性 C2–C9 独立推进。
-6. 查看 `status`，用 `report` 输出 HTML。失败和缺失项会保留。
+通过一次检查只说明记录的输入、权重、环境和路径相等。它不代表跨 GPU、跨 CUDA/ROCm、原生动态 batch、KV cache/PD、vLLM/Megatron 双引擎或优化器轨迹一致，也不会自动通过 C0–C10。完整模型和目标环境仍要保存实机结果；不能把“安装 skill”当成验证证据。
 
-## 重要规则
-
-- 同一权重版本下，training 必须独立重算。直接复用 rollout logprob 不算一致性证据。
-- 一致性与精度分开验证；前向一致不能证明梯度正确。
-- 小模型保留原层尺寸、精度与量化方式，完整模型及 checkpoint 恢复仍须验证。
-- 原生基线调优后由人审核并冻结，一致性开发不能修改它来缩小性能差距。
-- 修改源码、配置、精度规则、容差或输入范围后重新建立运行。不能沿用旧版本的发布结论。
-- 同一平台内部训推一致、跨 TP/CP 一致、CUDA/ROCm 之间一致、优化器轨迹一致是不同承诺。
-
-模板中的精度阈值和最少比较数量只用于搭建流程，正式使用前必须按模型、张量及任务审核。review 命令只记录已经发生的人类决定，不能代替真实审核。
+详见 [独立后端契约和模型扩展](independent-runtime.md)。已有的 [首个分歧定位器](diagnostics.md) 和 [C0–C10](../skills/train-inference-consistency/references/gates.md) 继续可用；原来的 RL-Kernel 启动桥接是可选兼容入口，不影响独立后端。

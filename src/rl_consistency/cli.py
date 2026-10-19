@@ -20,6 +20,19 @@ def parser():
     p = argparse.ArgumentParser(prog="rl-consistency")
     p.add_argument("--version", action="version", version=__version__)
     sub = p.add_subparsers(dest="command", required=True)
+    sub.add_parser("runtime-models", help="list independent runtime profiles and verification status")
+    runtime = sub.add_parser("runtime-check", help="run independent shared-prefix generation/recompute/actor checks")
+    runtime.add_argument("--model", required=True)
+    runtime.add_argument("--checkpoint", type=Path, required=True)
+    inputs = runtime.add_mutually_exclusive_group(required=True)
+    inputs.add_argument("--fixture", type=Path)
+    inputs.add_argument("--prompt")
+    runtime.add_argument("--device", default="cpu", help="cpu or cuda:0 (also for ROCm)")
+    runtime.add_argument("--dtype", choices=("float32", "bfloat16"), default="bfloat16")
+    runtime.add_argument("--max-new-tokens", type=int, default=2)
+    runtime.add_argument("--updates", type=int, choices=(0, 1, 2), default=0)
+    runtime.add_argument("--learning-rate", type=float, default=0.01)
+    runtime.add_argument("--output", type=Path, required=True)
     sub.add_parser("list", help="list bundled candidate recipes (none are certified)")
     for name in ("inspect-model", "prepare-model"):
         s = sub.add_parser(name, help="inspect/prepare registered Hybrid or MoE models; no GPU launch")
@@ -96,7 +109,14 @@ def main(argv=None):
     args = parser().parse_args(argv)
     code = 0
     try:
-        if args.command == "list":
+        if args.command == "runtime-models":
+            from .runtime import catalog
+            result = catalog()
+        elif args.command == "runtime-check":
+            from .runtime.runner import run
+            result = run(args)
+            code = {"equal_observed": 0, "mismatch": 1, "error": 2}[result["verdict"]]
+        elif args.command == "list":
             result = []
             for p in sorted(files("rl_consistency").joinpath("recipes").iterdir(), key=lambda x: x.name):
                 if p.name.endswith(".json"):
@@ -168,6 +188,6 @@ def main(argv=None):
                 code = 0 if result["exit_code"] == 0 else 1
         print(json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False))
         return code
-    except (ContractError, ValueError, KeyError, TypeError, OSError, subprocess.SubprocessError) as exc:
+    except (ContractError, ValueError, KeyError, TypeError, OSError, ImportError, RuntimeError, subprocess.SubprocessError) as exc:
         print(f"rl-consistency: {exc}", file=sys.stderr)
         return 2

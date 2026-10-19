@@ -1,8 +1,13 @@
 # Implementation roadmap
 
+The default product is now the independent shared runtime; existing engine bridges remain optional compatibility tools.
+
 | Milestone | Deliverable | Acceptance |
 |---|---|---|
-| Foundation (this change) | Skill, recipe binding, evidence checks, CLI, HTML, Qwen3 launch bridge | CPU failure-path tests and skill validation |
+| Independent reference runtime (implemented) | Shared-prefix generation, independent old-logprob/actor, real backward, local safetensors and optional SGD updates for Dense/Hybrid/MoE | Real tiny FP32/BF16 architecture tests and failure tests; full-model GPU acceptance pending |
+| Independent GPU release (pending) | Actual full-checkpoint fixtures on pinned ROCm/CUDA environments, accuracy and memory/performance measurements | Reviewed retained artifacts; no claim from tiny CPU tests |
+| Faster independent providers (pending) | Cache execution, invariant batching and distributed operators | Separate explicit contracts and model/environment matrices |
+| Foundation (implemented) | Skill, recipe binding, evidence checks, CLI, HTML, Qwen3 launch bridge | CPU failure-path tests and skill validation |
 | Capture primitives (implemented) | Explicit worker trace writer, loaded-file fingerprints, existing sidecar diagnostic import | CPU PyTorch serialization, dtype, mask and distributed-layout failure-path tests |
 | Native divergence locator (implemented CPU tooling) | Explicit module hooks and semantic DAG, binary snapshots, repeat checks, local replay and HTML matrix for unregistered models | Reconvergence, parallel frontiers, missing coverage, unstable repeats, autograd and replay failure tests; actual engine/GPU capture still required |
 | ROCm diagnostic runner (implemented, GPU run pending) | Profile resolution, pinned launch, raw comparison collection, JSON/HTML verdict | CPU orchestration/failure tests; real MI300X results still required |

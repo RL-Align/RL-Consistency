@@ -1,5 +1,7 @@
 # ROCm 实机诊断：Qwen3-8B
 
+For the independent shared backend, start with [independent-runtime.md](independent-runtime.md). The engine integration/preparation described below is the optional legacy route; its status does not describe the independent executor.
+
 这条入口用于你已有的 **8×MI300X / gfx942 + vime + Megatron + vLLM + RL-Kernel**
 环境。运行后直接查看逐 token 原始位差异、有效元素数、首个失败位置和 HTML 报告。
 本仓库没有进行 GPU 实测，以下是待你在实机执行的入口。

@@ -1,123 +1,73 @@
 # RL-Consistency
 
-Reusable agent skills and evidence tooling for bitwise train–inference consistency across model integrations, built on [RL-Kernel](https://github.com/RL-Align/RL-Kernel).
+An independent, model-extensible runtime and agent skill for bitwise train–inference consistency. **The default runtime requires no RL-Kernel installation.**
 
-**Status: development toolkit. All bundled recipes are candidates.**
+The shared executor runs generation, independent old-logprob recomputation and grad-enabled actor forward through the same trainable numerical path. Model adapters describe the architecture and load actual weights; the executor owns execution rules, comparison and failure handling.
 
-This project turns a consistency investigation into a repeatable C0–C10 workflow: freeze a strong native baseline, use a representative reduced model to find numerical problems, compare independently computed rollout/training outputs, check independent references, perform real updates, validate the full model and checkpoint resume, then measure performance.
+**Status: reference runtime implemented; full-size GPU acceptance pending.** Installing a skill does not establish bitwise equality. A successful check establishes equality only for the recorded inputs, weights, environment and execution scope.
 
-## Model support and bitwise consistency
+[中文说明](docs/README.zh-CN.md) · [Independent runtime guide](docs/independent-runtime.md) · [Architecture](docs/architecture.md)
 
-| Model | Architecture | CUDA integration | ROCm integration | Bitwise consistency verification in this repository |
+## Model support and absolute consistency
+
+| Model | Architecture | Independent execution | Automated verification completed | Full-model CUDA / ROCm bitwise acceptance |
 |---|---|---|---|---|
-| [Qwen3-8B](docs/qwen3.md) | Dense | Launcher integrated | [Fixed-policy diagnostic available](docs/rocm-quickstart.md) | Full C0–C10 acceptance pending |
-| [Qwen3.8-27B](docs/qwen38.md) | Hybrid Dense, text path | Configuration preparation | Configuration preparation | Strict runtime and GPU acceptance pending |
-| [Qwen3-30B-A3B](docs/qwen3-moe.md) | MoE, 128 experts / top-8 | Configuration preparation | Configuration preparation | Strict runtime and GPU acceptance pending |
+| Qwen3-8B | Dense | Shared generation, recomputation and actor backward | Tiny architecture FP32/BF16 CPU parity; checkpoint load; two effective updates | Pending / Pending |
+| Qwen3.8-27B | Hybrid Dense, text only; `qwen3_5` config family | Same executor, full-prefix GDN path | Tiny architecture FP32/BF16 CPU parity; nested checkpoint text load; two effective updates | Pending / Pending |
+| Qwen3-30B-A3B | MoE | Same executor, independent router IDs/weights/logits capture | Tiny architecture FP32/BF16 CPU parity; checkpoint load; two effective updates | Pending / Pending |
 
-**Bitwise consistency** means exact original-byte equality of independently
-computed rollout and training logprobs at the same weight version, within the
-declared backend, model and environment. MoE acceptance also checks independent
-expert choices, routing-weight bytes and dispatch/combine receipts.
+Tiny tests instantiate the real Transformers architectures with small dimensions and random weights. They are tooling/integration tests, **not results for the named full checkpoints**. Model profile names are declarations; actual configs and weight file hashes are recorded. Qwen3.8-27B requires the repository's declared `qwen3_5` architecture contract; its name alone does not select an implementation.
 
-The table tracks this repository's integration and acceptance status. No bundled
-recipe has completed GPU C0–C10 acceptance here. Qwen3-8B reuses the existing
-RL-Kernel integration; each bound recipe still needs its own evidence. Hybrid
-and MoE preparation creates proxy configurations and candidate recipes without
-launching GPU jobs. CUDA and ROCm acceptance is recorded separately.
+## Run independently
 
-Workflow v2 covers both native old-logprob recomputation and grad-enabled actor
-forward, plus theta0/theta1/theta2 comparisons. Read the
-[gate definitions](skills/train-inference-consistency/references/gates.md) and
-[workflow scope](skills/train-inference-consistency/references/workflow-scope.md).
-Old v1 evidence requires a new run under the v2 requirements.
-
-## What works in this first version
-
-- A [model-independent first-divergence locator](docs/diagnostics.md): explicit native PyTorch hooks, semantic DAG frontiers, repeat checks, local callable replay and an expandable comparison matrix. It works before strict-runtime model adaptation; engine-specific semantic capture remains explicit.
-- A CPU-only, standard-library CLI for recipe inspection, immutable run setup, gate evidence validation, review records and HTML reports.
-- Raw-byte FP16/BF16/FP32/FP64 comparisons with logical token alignment, signed-zero detection and rejection of empty/non-finite/missing data.
-- An explicit worker trace API with fixture coverage checks and loaded module/library fingerprints; optional PyTorch tensor capture.
-- A pinned RL-Kernel sidecar importer with TP replica checks and CP token alignment, producing diagnostic reports without certification claims.
-- Dependency-aware C0–C10 records; changed evidence or repeated prerequisite gates invalidate downstream results.
-- Candidate Qwen3-8B/vime recipes for CUDA SM90 and ROCm gfx942.
-- Qwen3.8-27B BF16 text-path preparation: architecture/operator inventory, source-preserving proxy config, CUDA/ROCm candidates and Hybrid-specific gate requirements.
-- Qwen3-30B-A3B BF16 MoE preparation, CUDA/ROCm candidates and routing-ledger checks alongside output parity at C3/C5/C8/C9, including checkpoint resume.
-- An independent FP64 GDN recurrence/gradient reference for small CPU accuracy fixtures; not a production kernel.
-- A Qwen3 command/preflight bridge to a pinned RL-Kernel launcher; it does not reimplement kernels or duplicate framework patches.
-- The `train-inference-consistency` skill, including baseline isolation, independent accuracy checks and human review points.
-
-**Not implemented yet:** automatic engine instrumentation/evidence production, proxy checkpoint materialization, a generalized multi-model runtime, a signed verified-recipe registry, or cross-hardware/optimizer-trajectory certification. The Hybrid and MoE adapters implement CPU preparation; they do not install strict runtime providers. GPU jobs, weights and framework environments are supplied by the operator. See [the roadmap](docs/roadmap.md).
-
-## Install and inspect (no GPU needed)
+Use an isolated environment with your platform's PyTorch already installed (ROCm PyTorch for AMD). The runtime extra does not install or replace PyTorch. The CPU integration baseline is PyTorch 2.6.0 and Transformers 5.20.1; GPU environments remain to be validated.
 
 ```bash
-python -m pip install -e .
-rl-consistency list
-rl-consistency export-recipe qwen3-8b-vime-rocm --output local.recipe.json
-rl-consistency check --recipe local.recipe.json
+python -m pip install -e '.[runtime]'
+rl-consistency runtime-models
+
+rl-consistency runtime-check \
+  --model Qwen/Qwen3-8B \
+  --checkpoint /models/Qwen3-8B \
+  --fixture examples/runtime-tokens.json \
+  --device cuda:0 --dtype bfloat16 \
+  --max-new-tokens 2 --output runs/qwen3-independent-001
 ```
 
-The check prints unbound identities. Populate them from actual source/model/environment artifacts; never guess hashes. Candidate tolerances and coverage minima require review. Recipes are installed as package resources under `src/rl_consistency/recipes/` so the CLI works outside this checkout.
+`cuda:0` is also PyTorch's device spelling on ROCm. Supply an existing local safetensors checkpoint. For a natural-language input, replace `--fixture` with `--prompt 'Explain numerical reproducibility.'`; the checkpoint must include its tokenizer. The fixture contains synthetic token IDs, not a quality benchmark.
 
-For an unregistered model, start with [native boundary diagnostics](docs/diagnostics.md)
-instead of a candidate recipe. With optional PyTorch installed, run the synthetic
-CPU example (intentionally exits **1** because it injects intermediate drift):
+Change `--model`, `--checkpoint` and the output directory to select the other models. Add `--updates 2` to execute real SGD calibration updates and check theta0/theta1/theta2. These updates optimize token negative logprob in memory; they are not an RL reward run and do not save a trained checkpoint.
 
-```bash
-rl-consistency diagnostic-demo --output runs/diagnostic-demo-001
-```
+The command checks original-byte vocabulary logits and selected-token FP32 logprobs, decoder boundary hashes, and MoE router outputs. It retains actual rollout observations before independently recomputing them. Mismatches stop the run; output directories cannot be overwritten.
 
-Open `runs/diagnostic-demo-001/report/matrix.html`. The final outputs match while
-an intermediate boundary differs; `replay/replay.json` retains the local replay.
-For real models, capture native boundaries with explicit semantic mappings, then
-run `rl-consistency diagnose --matrix <manifest.json> --output <new-directory>`.
-This does not automatically instrument vLLM/Megatron or certify a model.
+- Exit **0**: `equal_observed` for the executed fixture.
+- Exit **1**: numerical mismatch; inspect `result.json` and the retained rollout.
+- Exit **2**: unsupported route, invalid input, loading/execution error or incomplete check.
 
-Inspect a launch plan without executing it:
+## Execution scope
 
-```bash
-rl-consistency plan --recipe local.recipe.json \
-  --rl-kernel-root /path/to/RL-Kernel \
-  --profile /path/to/machine-profile.json --python /path/to/venv/bin/python
-```
+The first independent provider, `shared-prefix-v1`, uses one device, physical batch size one, eager attention/experts, no KV cache and fresh full-prefix execution. All phases run in eval mode **with autograd enabled**; actor backward uses its independently computed graph. Outer request ordering cannot change the physical batch shape. Deterministic PyTorch algorithms are required; unsupported operations fail.
 
-The plan uses inspected upstream commit `76a127c206b7ead6fb837b46264ba43f9ef20e82`. A source upgrade needs bridge review and new evidence. The default comparison is **within each backend**; CUDA and ROCm recipes are not evidence of equality between those backends.
+This is a slow reference path. It recomputes every prefix, copies observations to CPU and hashes model state. Eager attention and actor gradients consume substantial memory. A full 27B/30B model may exceed one GPU's capacity. There is no offload or distributed fallback. Use an isolated environment without `kernels`; Hybrid also rejects installed `fla`/`causal_conv1d`, which otherwise change provider dispatch.
 
-## Run a verification workflow
+The result does not establish native batching, cached prefill/decode parity, vLLM/Megatron parity, cross-device equality, independent mathematical accuracy, checkpoint resume or optimizer trajectory equality. It never automatically passes C0–C10 or marks a model certified. See [the runtime contract and extension steps](docs/independent-runtime.md).
 
-After binding real identities and implementing worker-side producers:
+## Add models
 
-```bash
-rl-consistency check --recipe local.recipe.json --bound
-rl-consistency init --recipe local.recipe.json --run-dir runs/qwen3-001
-rl-consistency gate C0 --run-dir runs/qwen3-001 --evidence evidence/c0.json
-rl-consistency status --run-dir runs/qwen3-001
-rl-consistency report --run-dir runs/qwen3-001 --output runs/qwen3-001/report.html
-```
+Add a profile and checkpoint adapter in `src/rl_consistency/runtime/models.py`, declare its semantic boundaries and routing/state observations, and exercise the real architecture through generation/recompute/backward and failure tests. Existing covered operators reuse the common executor. A new operator, quantization format or cache/state model requires provider work and fresh validation; adding a model name alone cannot grant support.
 
-Read [the evidence format](docs/evidence-format.md), [architecture](docs/architecture.md), and [Qwen3 integration](docs/qwen3.md) before writing a producer. A gate never executes arbitrary commands from an evidence file. It snapshots and evaluates supplied artifacts. Missing evidence remains pending; malformed or unsuccessful evidence fails.
+## Diagnostics and advanced engine validation
 
-Existing RL-Kernel sidecars can now be inspected with `rl-consistency import-rlk`.
-See [worker capture and sidecar import](docs/capture.md) for the command, supported
-layout and the worker API. The importer retains raw values and source hashes;
-it does not convert missing identities into a passing gate.
+The [native first-divergence locator](docs/diagnostics.md) works before model adaptation: explicit PyTorch hooks, semantic DAG frontiers, independent repeats, callable replay and HTML comparison matrices. `diagnostic-demo` runs a synthetic CPU fault injection and intentionally exits 1.
 
-`rl-consistency run` explicitly launches a GPU job after host preflight. Its log and return code do not automatically pass any gate. `plan`, `check`, `init`, `status`, `compare`, `gate`, `review` and `report` do not launch GPU jobs.
+The [C0–C10 evidence workflow](skills/train-inference-consistency/references/gates.md) remains available for broader model/engine acceptance. Read [evidence format](docs/evidence-format.md) and [workflow scope](skills/train-inference-consistency/references/workflow-scope.md). Its existing bundled vime recipes and `plan`/`preflight`/`run`/`rocm-check` commands are **optional legacy RL-Kernel integrations** with separate requirements. They are not prerequisites for `runtime-check`, and their evidence is not interchangeable with runtime-check reports.
 
-## Skill
+## Skill and tests
 
-The portable skill lives at [`skills/train-inference-consistency/SKILL.md`](skills/train-inference-consistency/SKILL.md). Point your agent's skill loader at that folder, or copy the folder into its configured skill directory. Install the Python toolkit first so the bundled scripts can import it. No personal skill installation or global agent configuration is performed by this repository.
-
-## Tests
+Point your agent's skill loader at [`skills/train-inference-consistency/`](skills/train-inference-consistency/). Install the Python package first. The skill defaults to the independent runtime; it selects native diagnostics or advanced engine verification when requested.
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-CPU tests use synthetic fixtures to verify the tooling. They are not model-consistency results and must never be published as GPU acceptance evidence.
-
-## Trust and release
-
-Evidence files and local reviewer names are not authenticated attestations. Maintainers must inspect provenance and raw artifacts. `release_eligible` means the local workflow and declared reviews are complete; it is not a registry certificate. Editing `status` in a recipe has no certification effect. There is no automatic recipe promotion in this release.
-
-[中文说明](docs/README.zh-CN.md) · [Development plan](docs/roadmap.md) · [Upstream reference map](docs/upstream.md)
+Without runtime dependencies, accelerator tests are skipped. The runtime CI job installs CPU PyTorch and the pinned Transformers version to execute all three tiny architectures. Evidence and local reviewer identities are not authenticated attestations; a signed release registry remains future work. [License](LICENSE).
