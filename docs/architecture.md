@@ -27,6 +27,7 @@ adapter work.
 | `src/rl_consistency/contracts.py` | Bound model/environment/coverage contract |
 | `src/rl_consistency/compare.py` | Raw-bit or independent-reference comparisons |
 | `src/rl_consistency/capture.py` | Worker provenance and exact-coverage trace publication |
+| `src/rl_consistency/diagnostics/` | Native module inventory/hooks, bounded binary snapshots, semantic DAG localization, callable replay and comparison matrices |
 | `src/rl_consistency/rlk_import.py` | Pinned Vime sidecar diagnostics, TP/CP checks; no gate promotion |
 | `src/rl_consistency/rocm.py` | Fixed-policy ROCm launch, environment checks and raw sidecar reports |
 | `src/rl_consistency/gates.py` | Gate-specific machine checks |
@@ -45,11 +46,17 @@ No RL-Kernel code is vendored. Reuse canonical `rl_engine/contracts`, `runtime`,
 
 A run snapshots one bound recipe and its hash. Each attempt snapshots its evidence and referenced JSON artifacts, hashes them, binds prerequisite attempt IDs, and records its machine verdict. Retrying a prerequisite changes its ID, invalidating descendants and reviews tied to old attempts. Modifying copied artifacts invalidates their attempt. Never repair snapshots in place.
 
-`flock` serializes workflow writes on POSIX hosts; these operations target Linux accelerator environments and macOS developer machines. Do not share one run directory over storage whose locks are unreliable. Large tensor stores and distributed producer transport are future work.
+`flock` serializes workflow writes on POSIX hosts; these operations target Linux accelerator environments and macOS developer machines. Do not share one run directory over storage whose locks are unreliable. Standalone diagnostics have a bounded, content-addressed binary tensor store; asynchronous large-model capture and distributed producer transport remain future work.
 
 The manifest/result hash scheme detects ordinary drift; it is not tamper-proof against a person who can rewrite the whole run. Local reviewer names are declarations. A future registry needs authenticated approval and artifact signing.
 
 ## Model extension
+
+Native diagnosis can precede model registration. See [diagnostics.md](diagnostics.md):
+explicit semantic boundaries, independent repeats and a declared dependency graph
+locate the earliest observed divergent frontier. `diagnostic-trace.v1` is a
+separate format from formal `trace.v1`; diagnostic results never advance gates.
+Generic hooks do not infer fused semantics or install themselves in engine workers.
 
 Implement a topology/operator inventory, a reduced-model builder preserving original dimensions and precision, and semantic boundaries for tracing. Implement worker-side engine capture and full-model/optimizer/checkpoint evidence production. Add real coverage cases and tests, then repeat C0–C10. Do not assume an empty adapter directory means support.
 

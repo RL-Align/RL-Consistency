@@ -60,6 +60,11 @@ def parser():
     compare.add_argument("--accuracy", action="store_true")
     compare.add_argument("--atol", type=float, default=0.0)
     compare.add_argument("--rtol", type=float, default=0.0)
+    diagnose = sub.add_parser("diagnose", help="locate observed divergence in a semantic DAG; no model registry or gate pass")
+    diagnose.add_argument("--matrix", type=Path, required=True)
+    diagnose.add_argument("--output", type=Path, required=True)
+    demo = sub.add_parser("diagnostic-demo", help="run optional PyTorch CPU fault injection; not model acceptance")
+    demo.add_argument("--output", type=Path, required=True)
     ingest = sub.add_parser("import-rlk", help="compare pinned Vime sidecars as diagnostics; does not pass gates")
     ingest.add_argument("--source", type=Path, required=True)
     ingest.add_argument("--output", type=Path, required=True)
@@ -134,6 +139,14 @@ def main(argv=None):
             result = compare_traces(read_json(args.left), read_json(args.right), accuracy=args.accuracy,
                                     atol=args.atol, rtol=args.rtol)
             code = 0 if result["passed"] else 1
+        elif args.command in {"diagnose", "diagnostic-demo"}:
+            if args.command == "diagnose":
+                from .diagnostics import run_matrix
+                result = run_matrix(args.matrix, args.output)
+            else:
+                from .diagnostics.demo import run_demo
+                result = run_demo(args.output)
+            code = {"equal_observed": 0, "mismatch": 1, "inconclusive": 2}[result["verdict"]]
         elif args.command == "import-rlk":
             result = import_sidecars(args.source, args.output, tp=args.tp, cp=args.cp,
                                      world_size=args.world_size, layout=args.layout)

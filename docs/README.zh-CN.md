@@ -21,6 +21,17 @@ Hybrid 默认 8 层，MoE 默认 4 层并保留 128 专家/top-8。CUDA 与 ROCm
 
 ## 工作流与工具
 
+**未适配模型也可以先定位。** 新增[通用首个分歧定位器](diagnostics.md)，
+保留两侧原生实现，显式映射语义边界，按依赖图定位，输出可展开的矩阵。
+它检查同侧重复稳定性、输入/输出和状态指纹，并可调用原始实现做同输入局部重放。
+不要求先注册模型或替换 RL-Kernel 算子；实际引擎仍需接入边界采集。
+
+有 PyTorch 时运行 `rl-consistency diagnostic-demo --output runs/diagnostic-demo-001`，
+即可看到“中间不一致、最终又相同”的 CPU 合成案例（预期退出码 1）。
+矩阵位于 `runs/diagnostic-demo-001/report/matrix.html`。真实模型通过
+`rl-consistency diagnose --matrix <manifest.json> --output <新目录>` 分析采集结果。
+诊断可用与模型绝对一致性验收是两个状态，上表的验收范围保持适用。
+
 C0–C10 工作流包含 C5 双路径、C4 结构性能、C6 backward/STE、θ0/θ1/θ2
 和完整模型运行前的 recipe review。详见
 [gate 定义](../skills/train-inference-consistency/references/gates.md)与

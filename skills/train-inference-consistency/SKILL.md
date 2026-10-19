@@ -1,6 +1,6 @@
 ---
 name: train-inference-consistency
-description: Develop and audit bitwise train–inference consistency using RL-Kernel. Use to onboard models including Qwen3-8B, Qwen3.8-27B Hybrid Dense and Qwen3-30B-A3B MoE, diagnose rollout versus training logprob or routing drift, validate batch or prefill/decode invariance, compare a strict path with a native baseline, or review verification evidence.
+description: Develop and audit bitwise train–inference consistency, and locate native first divergence on models not yet adapted to RL-Kernel. Use to onboard Qwen3-8B, Qwen3.8-27B Hybrid Dense and Qwen3-30B-A3B MoE, diagnose rollout versus training logprob or routing drift with semantic capture and local replay, validate batch or prefill/decode invariance, compare a strict path with a native baseline, or review verification evidence.
 ---
 
 # Train–Inference Consistency
@@ -12,6 +12,13 @@ Inspect the user's framework, hardware and numerical requirements before
 selecting providers, launch settings or benchmarks.
 
 ## Begin
+
+For an unregistered model or a request to locate native divergence, start with
+[standalone diagnostics](references/diagnostics.md). Inspect both native engines,
+map semantic boundaries, capture independent repeats, generate the DAG matrix
+and replay candidates. This route does not require `prepare-model`, a recipe or
+RL-Kernel operators. Return to the workflow below when developing and verifying
+the strict runtime; a diagnostic match cannot certify model support.
 
 1. Read the target repository's instructions and `docs/architecture.md`. Inspect the actual model, engine versions, hardware and user-requested comparison scope.
    For Qwen3.8-27B, read [the Hybrid model guide](references/qwen38-27b.md) and
@@ -34,7 +41,7 @@ selecting providers, launch settings or benchmarks.
 - Read [baseline-policy.md](references/baseline-policy.md) before C1/C10. Freeze the baseline after its human review. Do not slow the native path, cherry-pick runs, change work, or hide failures to improve the comparison.
 - Construct a reduced model by selecting source layers, preserving operator dimensions, quantization and relevant layer transitions. Usually 4–6 layers suffice; increase the count when coverage demands it. Do not weaken RL-Kernel's existing full-model specification to create a small model.
 - At C5 compare two actual paths separately: native old-logprob recomputation and the grad-enabled actor forward, each against rollout at the same weight version. Record model/grad modes, output requires_grad and executed callsite. Reusing rollout values or substituting a diagnostic forward is not verification.
-- Read [debugging.md](references/debugging.md) for a mismatch. Preserve the failing inputs, find the earliest differing intermediate in declared execution order, and correct the first cause. Do not relax bitwise acceptance, change the baseline, or stop at matching generated tokens.
+- Read [debugging.md](references/debugging.md) and [standalone diagnostics](references/diagnostics.md) for a mismatch. Preserve failing inputs, find the earliest observed divergent frontier in the declared dependency graph, then replay and verify the cause. Missing ancestors and opaque interiors limit localization. Do not relax bitwise acceptance, change the baseline, or stop at matching generated tokens.
 - Run independent mathematical forward and gradient references. A reference with the same fixed reduction tree checks consistency only; it is not sufficient evidence of numerical accuracy.
 - Complete theta0 compare → effective update → theta1 compare → effective update → theta2 compare, with normal exit. Check finite/nonzero gradients and complete master parameter change; deployment bytes may stay unchanged after quantization. Keep every comparison within one weight version.
 - Validate the full model, declared context/topology matrix, and restored checkpoint's first forward/update. Preserve model, optimizer, scheduler, RNG and data cursor state. Saving or loading alone does not pass.

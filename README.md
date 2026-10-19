@@ -33,6 +33,7 @@ Old v1 evidence requires a new run under the v2 requirements.
 
 ## What works in this first version
 
+- A [model-independent first-divergence locator](docs/diagnostics.md): explicit native PyTorch hooks, semantic DAG frontiers, repeat checks, local callable replay and an expandable comparison matrix. It works before strict-runtime model adaptation; engine-specific semantic capture remains explicit.
 - A CPU-only, standard-library CLI for recipe inspection, immutable run setup, gate evidence validation, review records and HTML reports.
 - Raw-byte FP16/BF16/FP32/FP64 comparisons with logical token alignment, signed-zero detection and rejection of empty/non-finite/missing data.
 - An explicit worker trace API with fixture coverage checks and loaded module/library fingerprints; optional PyTorch tensor capture.
@@ -57,6 +58,20 @@ rl-consistency check --recipe local.recipe.json
 ```
 
 The check prints unbound identities. Populate them from actual source/model/environment artifacts; never guess hashes. Candidate tolerances and coverage minima require review. Recipes are installed as package resources under `src/rl_consistency/recipes/` so the CLI works outside this checkout.
+
+For an unregistered model, start with [native boundary diagnostics](docs/diagnostics.md)
+instead of a candidate recipe. With optional PyTorch installed, run the synthetic
+CPU example (intentionally exits **1** because it injects intermediate drift):
+
+```bash
+rl-consistency diagnostic-demo --output runs/diagnostic-demo-001
+```
+
+Open `runs/diagnostic-demo-001/report/matrix.html`. The final outputs match while
+an intermediate boundary differs; `replay/replay.json` retains the local replay.
+For real models, capture native boundaries with explicit semantic mappings, then
+run `rl-consistency diagnose --matrix <manifest.json> --output <new-directory>`.
+This does not automatically instrument vLLM/Megatron or certify a model.
 
 Inspect a launch plan without executing it:
 

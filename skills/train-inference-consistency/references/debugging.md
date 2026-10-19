@@ -1,5 +1,10 @@
 # First-difference debugging
 
+Use `rl-consistency diagnose` and the [native diagnostic workflow](diagnostics.md)
+for unregistered models and native implementations before strict operator adaptation.
+The dependency graph, repeatability checks and same-input replay distinguish an
+observed boundary from a confirmed difference in a specific replay context.
+
 1. Verify the actual loaded code/binary, checkpoint version, input tokens, masks, positions, topology, score definition and runtime routes.
 2. Compare logically aligned final logprobs as raw bytes, preserving the raw failing sample.
 3. Capture corresponding layer boundaries. Use the model's declared topological execution order to locate the first difference; lexicographic layer-name order is not execution order.
