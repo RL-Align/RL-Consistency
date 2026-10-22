@@ -1,48 +1,32 @@
-# Diagnose models without strict-runtime adaptation
+# Locate first divergence before model adaptation
 
-Use the standalone `diagnostics` API before recipe onboarding when the user asks
-to locate native drift on a model absent from the registry. Read the repository's
-`docs/diagnostics.md` for the exact API and formats. This route needs neither an
-RL-Kernel operator substitution nor a fabricated candidate recipe.
+Use this procedure on existing native paths even when no model guide or strict provider exists. Implement the necessary capture adapters in the target project. No registry entry, special CLI or kernel replacement is required to begin.
 
-1. Inspect native engine/model support and the actual worker execution. Use
-   `discover_modules(model)` for an inventory, then create an explicit semantic
-   boundary mapping. Names and shapes alone never establish correspondence.
-2. Pin weights/version, canonical tokens, masks, positions and state fixture.
-   Declare every expected sample/call/shard boundary and its dependencies before
-   capture. Keep rollout/old-logprob and rollout/grad-actor as separate cases.
-3. Capture both native implementations with `DiagnosticWriter` or explicit
-   `ModuleCapture` bindings. Preserve dtype, logical slices and independent
-   computation. Record actual worker provenance and observer effects. Default
-   module state is partial; include KV, RNG, router and engine state before
-   asserting completeness. Unknown fused interiors stay opaque.
-4. Reset the same state and independently repeat each side. Save four separate
-   capture IDs/directories. Do not copy a capture to supply the repeat.
-5. Run `rl-consistency diagnose --matrix <manifest.json> --output <new-directory>`.
-   Exit 1 is an observed mismatch; exit 2 is incomplete/incomparable/invalid
-   evidence. Inspect repeatability before attributing a stable cross-path cause.
-   Read the expandable HTML cells and retain JSON plus all source tensor blobs.
-6. Follow the DAG frontier, which may contain multiple parallel nodes. If an
-   ancestor is missing, fill the gap first. Refine opaque regions with a new plan
-   and new captures. Do not bisect under a monotonic-drift assumption or use
-   lexicographic names/cross-rank wall clocks as execution order.
-7. For each candidate, use `replay_boundary` with original provider callables,
-   an actual reset/state callback, and the original left boundary input bytes.
-   Preserve physical batch/layout/precision/engine context in the adapter. The
-   helper runs each endpoint twice and binds the receipt to original captures.
-   `local_replay_mismatch` applies to that replay context; confirm on the
-   original execution path before attributing the production cause.
-8. Report the observed frontier, missing/opaque coverage, input/state changes,
-   repeat instability, replay result and next boundary to instrument. Preserve
-   regression evidence and re-run the affected production cases after a fix.
+## Establish a comparable failing case
 
-For CPU tooling calibration, `rl-consistency diagnostic-demo --output <new-dir>`
-injects synthetic intermediate drift that reconverges before final output. It
-requires optional PyTorch and intentionally exits 1. Do not relabel its outputs
-as evidence for Qwen or any real model.
+1. Inspect actual rollout, independent old-logprob and actor execution. Freeze weights, exact token IDs/masks/positions, scoring semantics and necessary state. Preserve the original failing request and worker provenance.
+2. Inventory module boundaries, then map them to semantic nodes and dependencies. Record inputs/outputs and known state for each node. Module names/shapes alone do not prove equivalence. Treat fused/opaque interiors as explicit intervals.
+3. Predeclare expected requests/tokens/nodes/ranks and record what cannot be observed. Capture each native side twice from equivalent reset state into four independent attempt directories. Check same-side repeatability before attributing stable cross-path differences.
+4. Compare logically aligned raw bytes and coverage using [evidence.md](evidence.md). Keep rollout/old and rollout/actor cases separate. If weights, semantics, inputs or state differ, resolve that before blaming arithmetic.
 
-Do not reject an unknown model merely because `prepare-model` cannot register
-it. Complete inventory, mapping and native capture integration where possible.
-When an engine cannot expose a boundary, report the smallest observed interval
-and the missing adapter work. Never claim automatic vLLM/Megatron instrumentation,
-all-model consistency, production root cause or C0–C10 acceptance from this tool.
+## Follow the semantic DAG
+
+For every node whose outputs differ, inspect its input ports, state, repeat stability and predecessor coverage. A node with matching incoming values/state but differing outputs is a useful local candidate. If inputs already differ, trace its predecessors first. If an ancestor is missing or opaque, report the smallest observed interval and unresolved coverage.
+
+There can be multiple parallel divergent frontiers. Floating-point differences can disappear and later reappear; equal final outputs do not rule out intermediate drift. Do not use binary search assuming monotonic propagation, lexicographic layer order or cross-device wall clocks as causal order.
+
+Use a matrix of semantic nodes versus test cases, with `equal`, `different`, `missing`, `incomparable` or `unstable` cells. Link every cell to its captures and repeat verdicts. Add finer boundaries only where needed. An HTML viewer is optional target-project tooling; the matrix and evidence must remain inspectable without it.
+
+## Replay and establish cause
+
+Replay each candidate with identical original input bytes and equivalent complete state using the actual providers. Preserve physical shape/layout, masking, precision, kernel selection, graph/cache mode and relevant communication context. Repeat each replay independently. A standalone callable mismatch establishes a local difference in that replay context; confirm the diagnosis on the original execution path before declaring the production cause.
+
+Inspect GEMM/reduction partitions, accumulator type, cast/fusion/FMA points, transcendental functions, attention/KV metadata, quantization scales and MoE decisions. Compare fixed-order contract references and independent high-precision math separately. For communication, check both endpoints' dtype/shape/byte count, offsets, logical order, sequence and group mapping, including uneven or empty payloads when in scope.
+
+Apply one targeted change, preserve a regression fixture and rerun the original failing case plus affected invariance/accuracy cases. If the failure survives, retain the attempted fix's evidence and continue from the observed frontier. Do not replace real missing data with synthetic equal values.
+
+## Report the limits
+
+Record first observed frontier(s), upstream gaps, opaque regions, input/state equality, repeat stability, replay context/result, confirmed cause if established, code change and regression results. Partial module state is not complete runtime state. A matched final logprob, successful local replay or an instrumented reference route cannot certify the unobserved native production execution.
+
+For an unknown model, complete inventory and boundary mapping first, then use [model-extension.md](model-extension.md) to develop the strict implementation. Preserve a blocked status where the actual engine cannot expose required evidence.

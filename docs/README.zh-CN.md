@@ -1,47 +1,44 @@
 # RL-Consistency
 
-项目定位：**独立的一致性执行后端 + 模型适配器 + 开箱运行的 skill**。默认入口不需要安装 RL-Kernel，也不要求 vLLM 或 Megatron。
+这是一个 **Markdown 编写的通用 agent skill 项目**。把模型、训练框架、推理框架和硬件环境交给其他 agent，agent 按 C0–C10 在目标项目中开发代码、定位分歧、运行验证，最终交付有实测证据的训推一致性实现。
 
-公共后端负责控制数值执行、独立重算、逐位比较和失败处理；模型适配器负责识别结构、加载真实权重、声明状态与路由观察点。已有算子覆盖的模型复用公共后端，新增算子仍需要开发和验证。
+本仓库交付方法、开发步骤、数值契约、排错流程和验收模板。使用 skill 无需安装本仓库的 Python 包，也不依赖 RL-Kernel；实际模型的运行环境由目标项目决定。
 
-## 模型支持与绝对一致性状态
+## 怎么交给另一个 agent
 
-| 模型 | 独立运行路径 | 已完成的自动化验证 | 完整模型 CUDA / ROCm 绝对一致性 |
-|---|---|---|---|
-| Qwen3-8B，Dense | 生成、独立 old-logprob 重算、actor forward/backward | 小型真实架构 FP32/BF16 CPU 逐位比较、权重加载、两次有效更新 | 待验收 / 待验收 |
-| Qwen3.8-27B，Hybrid Dense 文本路径 | 同一后端，完整前缀 GDN；按实际 `qwen3_5` 配置接入 | 小型真实架构 FP32/BF16 比较、嵌套 checkpoint 文本权重加载、两次有效更新 | 待验收 / 待验收 |
-| Qwen3-30B-A3B，MoE | 同一后端，额外比较独立路由 ID、权重与 logits | 小型真实架构 FP32/BF16 比较、权重加载、两次有效更新 | 待验收 / 待验收 |
+将整个 `skills/train-inference-consistency/` 文件夹放到该 agent 的 skill 目录，或者让它直接读取 [SKILL.md](../skills/train-inference-consistency/SKILL.md)。保留相对路径引用的 Markdown 文件。
 
-小型架构测试使用 Transformers 的真实模型实现、缩小维度和随机权重，**不能当成上述完整模型的验收结果**。当前没有模型可宣称已经在本仓库完成完整 ROCm 绝对一致性验收。
+可以直接给它这段任务：
 
-## 直接运行
+> 使用这个 train-inference-consistency skill，为【模型】在【训练仓库】与【推理仓库】、【硬件】上实现训推 bitwise 一致性。先检查真实 checkpoint、框架源码和当前执行路径，再按 C0–C10 推进。代码和测试写进目标项目；独立采集 rollout、old-logprob 重算与 actor forward；保留原始失败样本和每关证据。未实际执行的验证保持待完成，不要缩小生产执行范围后宣称原目标已经通过。
 
-在隔离环境中先安装对应平台的 PyTorch；AMD 使用 ROCm 版。然后执行：
+## C0–C10 做什么
 
-```bash
-python -m pip install -e '.[runtime]'
-rl-consistency runtime-models
+| 阶段 | agent 要完成的事情 |
+|---|---|
+| C0 | 查清模型、算子、框架和硬件路径，定义比较范围与数值契约 |
+| C1 | 把原生基线调好、测量并冻结 |
+| C2 | 使用原始权重与原始层内尺寸，构建有代表性的减层模型 |
+| C3 | 开发并验证推理重复、batch、padding、prefill/decode 等一致性 |
+| C4 | 检查实际算子形状、调用次数、同步、workspace 和 Graph 的结构性性能问题 |
+| C5 | 让 old-logprob 独立重算和带梯度 actor forward 分别对齐 rollout |
+| C6 | 完成 backward 接入，检查保存状态、梯度语义和训练开销 |
+| C7 | 使用独立数学参考验证前向、梯度和更新精度 |
+| C8 | 真实更新两次，在 θ0、θ1、θ2 各自进行同权重版本的训推比较 |
+| C9 | 完整模型、上下文与拓扑矩阵，以及 checkpoint 恢复后的前向和更新验证 |
+| C10 | 交付实现、复现方法、验证边界和公平的性能结果 |
 
-rl-consistency runtime-check \
-  --model Qwen/Qwen3-8B \
-  --checkpoint /models/Qwen3-8B \
-  --fixture examples/runtime-tokens.json \
-  --device cuda:0 --dtype bfloat16 \
-  --max-new-tokens 2 --output runs/qwen3-independent-001
-```
+每一关都有前置条件、代码工作、验证方式、所需产物、通过标准和失败后的返回路径。遇到未知模型，可以先按语义依赖图定位首个观察到的不一致，再逐步补适配。
 
-ROCm 同样使用 `cuda:0`。换模型只需更换 `--model`、真实本地 checkpoint 和输出目录。也可将 `--fixture` 换成 `--prompt '解释一下浮点数运算。'`，使用 checkpoint 中的 tokenizer。
+## 模型指南与绝对一致性状态
 
-增加 `--updates 2` 会执行两次真实 SGD 校准更新，并分别检查 θ0/θ1/θ2。同一 θ 内比较；不会拿不同权重版本的输出比较。这是基于生成 token 的负对数似然校准，不是完整 RL 训练，也不保存训练后 checkpoint。
+| 模型 | 已提供的开发指南 | 完整模型绝对一致性验收 |
+|---|---|---|
+| Qwen3-8B | Dense、attention、GEMM、norm、RoPE、logprob 与规约 | 本 skill 项目未记录完整验收；已有外部结果只适用于其原始证据范围 |
+| Qwen3.8-27B | Hybrid 文本路径、卷积状态、递归状态与注意力层交互 | 待完成 |
+| Qwen3-30B-A3B | 独立路由、dispatch、专家计算和 combine | 待完成 |
+| 其他模型 | 通用模型扩展模板与排错流程 | 按目标环境实际开发和验收 |
 
-`result.json` 记录输入、权重与实现身份、比较范围和结果；每个 θ 保存生成时的原始观察值以及独立重算结果。退出码 0 表示当前用例观察值完全相等；1 表示不一致；2 表示错误或不支持。没有“忽略误差继续通过”的选项。
+新增模型时增加对应 Markdown 资料和测试要求，公共 C0–C10 流程复用。新增算子、量化方式或状态路径仍需要 agent 在目标项目里开发代码，不能仅增加模型名称就宣称支持。
 
-## 首版实现范围
-
-`shared-prefix-v1` 固定单设备、物理 batch=1、eager attention/experts、不使用 KV cache，每个 token 都重新计算完整前缀。生成、重算、actor 都在 eval 模式下启用 autograd，只有 actor 执行反向传播。比较原始字节，包括 signed zero；不是仅比较生成文本。
-
-这一版优先建立共同执行路径，吞吐较低，完整前缀重算、状态哈希和 CPU 采集都有开销。eager attention、权重和梯度需要足够显存，27B/30B 可能无法在单卡完成；当前不会自动切换成多卡或 offload。环境中不能安装 `kernels`，Hybrid 还排除 `fla`、`causal_conv1d`，防止自动选择另一套数值实现。
-
-通过一次检查只说明记录的输入、权重、环境和路径相等。它不代表跨 GPU、跨 CUDA/ROCm、原生动态 batch、KV cache/PD、vLLM/Megatron 双引擎或优化器轨迹一致，也不会自动通过 C0–C10。完整模型和目标环境仍要保存实机结果；不能把“安装 skill”当成验证证据。
-
-详见 [独立后端契约和模型扩展](independent-runtime.md)。已有的 [首个分歧定位器](diagnostics.md) 和 [C0–C10](../skills/train-inference-consistency/references/gates.md) 继续可用；原来的 RL-Kernel 启动桥接是可选兼容入口，不影响独立后端。
+完整目录和入口见 [主 README](../README.md)。之前的 Python 实验实现已保留在 [archive/runtime-v0.3](https://github.com/RL-Align/RL-Consistency/tree/archive/runtime-v0.3)，主分支交付内容全部为 Markdown。

@@ -1,7 +1,0 @@
-{
-  "schema": "rl-consistency.token-fixture.v1",
-  "requests": [
-    {"id": "short", "input_ids": [1, 2, 3]},
-    {"id": "longer", "input_ids": [1, 2, 3, 4, 5]}
-  ]
-}

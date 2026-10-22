@@ -1,4 +1,0 @@
-interface:
-  display_name: "Train–Inference Consistency"
-  short_description: "Run independent bitwise consistency checks"
-  default_prompt: "Use $train-inference-consistency to run an independent model consistency check and report its measured scope."
