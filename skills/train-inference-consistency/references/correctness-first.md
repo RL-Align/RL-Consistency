@@ -31,6 +31,12 @@ For batch invariance, unpack requests by logical identity, run the same per-requ
 
 For attention, do not include future/padding coordinates merely to match physical tensor dimensions. Iterate the same valid prefix for a token in both scoring and generation. For recurrent models, an identical recurrence evaluated from equivalent state is the starting point; copying rollout's hidden states or routes into actor is not an independent training computation.
 
+## Verify accumulation precision in the differentiable implementation
+
+A per-token forward written as a list of ordinary linear calls can be byte-stable while backward accumulates separate contributions into a BF16 parameter gradient. The repeated BF16 rounding may violate a predeclared accuracy threshold even when forward and input gradients pass. Inspect the actual accumulation dtype and cast points; do not assume ordinary autograd implies sufficiently accurate parameter gradients.
+
+If the measurement requires a correction, accumulate parameter-gradient contributions in the declared higher precision and logical order, with an explicit final cast. A custom backward must use the real saved inputs and incoming derivatives, preserve all expected input/weight/bias gradients and be checked against independent mathematical formulas. Keep the failed case and original thresholds. Passing this local check does not establish optimizer accuracy, distributed normalization, higher-order gradients or the full model's C6/C7 gates.
+
 ## Finish the real task
 
 Run rollout→old and rollout→actor comparisons separately at theta0, theta1 and theta2, with two effective optimizer updates, synchronized weights and invalidated/rebuilt dependent state. Compare only within a weight version. Keep old policy scores frozen when the actual RL objective requires that; use fresh synchronized cases for the new-version comparisons.
