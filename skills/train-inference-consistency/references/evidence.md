@@ -21,6 +21,8 @@ For a capture, retain:
 
 Record expected coverage before execution. Independently execute each side/repeat; never duplicate a payload to supply a missing result. Record actor output `requires_grad` and evidence that the actual training callsite ran. Capture hooks must not replace outputs, detach the actor graph or alter routing/cache behavior. Measure whether observation disables fusion or changes dispatch, and validate the claimed final route after removing intrusive instrumentation.
 
+Carry the producer's stable sample ID through the actual batch builder, DP partition and microbatch fields. A local partition index is a position in the current rollout, not necessarily that sample ID. They can coincide at theta0 and diverge at theta1, or after reordering/resume. Preserve both fields when useful, and test a case where they deliberately differ. Validate identity and coverage before an optimizer advances the policy version; do not repair a mismatch by renumbering captured rows without an observed mapping.
+
 ## Comparison procedure
 
 1. Validate provenance and scope compatibility, including synchronized weights and scoring semantics. If incompatible, report blocked/incomparable and resolve the mismatch.
