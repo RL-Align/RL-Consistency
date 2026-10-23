@@ -184,6 +184,15 @@ vLLM 的 frontend CLI 模块位置、健康检查端点和 sampler/runner 类型
 未选用的可选传输后端不应因无条件 import 阻塞默认路径；修复条件导入并测试缺包场景，
 不要据此给整个镜像补装未经核对的依赖。
 
+检查配置是否真正传到了 worker，而不只查看 driver 命令行：
+vime 的服务器环境构造可能强制覆盖 `VLLM_USE_V2_MODEL_RUNNER`，
+其固定参数字典也可能让显式 `--vllm-logprobs-mode` 被忽略。
+记录 worker 的实际 runner 类型和 sampler 的 `logprobs_mode`，并与声明逐项核对。
+修复时保留项目原有默认值、允许显式选择生效，并测试两种行为。
+不要因为温度恰好为 1 就默默把 processed 与 raw 分数当作同一验收语义；
+先证明处理过程等价，或重新运行实际 raw 分支。不同 runner/评分语义的
+旧证据不得继承新范围的通过状态。
+
 ## 由 agent 整理可修改的运行环境
 
 1. **冻结实际环境。** 检查镜像原有 vime、Megatron、vLLM 的加载路径、源码提交、未提交修改、已编译扩展和必要 AMD 补丁。记录 ROCm/PyTorch/Transformer Engine/RCCL/Ray 版本、设备映射及相关环境变量。只记录与任务有关的配置，避免把凭据混入日志。检查模型快照、配置、tokenizer 和权重分片是否齐全，解析缓存符号链接，记录内容身份。
