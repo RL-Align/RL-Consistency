@@ -1,69 +1,30 @@
 # RL-Consistency
 
-A **Markdown-only agent skill** for implementing and verifying bitwise training–inference consistency through C0–C10, with **no performance target by default**.
+A Markdown agent skill for implementing and verifying bitwise training–inference consistency.
 
-Give this skill to an agent together with a model checkpoint, training/rollout repositories and a hardware target. The agent inventories the actual execution paths, implements the required numerical contracts in those target repositories, diagnoses divergence and collects evidence through full-model updates and resume. The agent may implement slow common arithmetic, sequential reductions or per-token execution; correctness acceptance has no throughput or latency threshold.
+Give your agent the skill, a model checkpoint, your post-training framework and a hardware target. It guides the agent through adapting the implementation and verifying independent rollout, old-logprob and grad-enabled actor execution, real updates and checkpoint resume.
 
-The skill has no Python package, bundled kernels, launcher or required RL-Kernel dependency. It can guide work on existing engines or a user-requested custom backend. Reading the skill does not establish consistency; the resulting implementation must pass its declared checks.
+[Start the skill](skills/train-inference-consistency/SKILL.md) · [Usage guide](docs/usage.md)
 
-[Usage guide](docs/usage.md) · [Start the skill](skills/train-inference-consistency/SKILL.md) · [C0–C10](skills/train-inference-consistency/references/gates.md)
+## Measured results
 
-## Use with another agent
-
-Copy the complete `skills/train-inference-consistency/` directory into your agent's supported skill directory, or give the agent its `SKILL.md` path. Keep its relative Markdown references together. No package installation is needed to read or use the skill; developing and running the target model requires that target's dependencies and hardware.
-
-Example task:
-
-> Use the train-inference-consistency skill in this checkout to develop bitwise consistency for MODEL in TRAINING_REPO and ROLLOUT_REPO on HARDWARE. Inspect the actual checkpoint and loaded implementations, then follow C0–C10. Implement changes and tests in the target repositories, retain independent rollout/old-logprob/actor evidence, and leave unexecuted gates pending. Do not optimize performance. Use the simplest correct implementation, preserve explicitly requested behavior, and mark C1/C4 not-required.
-
-If details are missing, the agent first inspects the accessible target projects, completes the inventory and records the smallest remaining blocker. It does not invent weights, device results or implementation support.
-
-For AMD GPU validation with vime, follow the [ROCm/vime setup and agent task](skills/train-inference-consistency/references/vime-rocm.md). It includes a dedicated Docker workspace, environment probes, source/dependency checks and a copyable implementation task for Qwen3-8B followed by Qwen3-30B-A3B. Reusing an existing ROCm image does not make RL-Kernel a dependency; verify the actual worker paths after removing any prior integration.
-
-## Workflow
-
-| Stage | Agent outcome |
-|---|---|
-| C0 | Actual model/operator/engine inventory and comparison contract |
-| C1 | Optional native performance baseline; default `not-required` |
-| C2 | Representative reduced model with original dimensions and source weights |
-| C3 | Inference repeatability, batching and prefill/decode invariance within scope |
-| C4 | Optional structural performance work; default `not-required` |
-| C5 | Independent old-logprob and grad-enabled actor forward both match rollout |
-| C6 | Complete backward integration and actual gradient coverage |
-| C7 | Independent mathematical forward, gradient and update accuracy |
-| C8 | Two effective updates with theta0/theta1/theta2 comparisons |
-| C9 | Full-model matrix and checkpoint-resume validation |
-| C10 | Reproducible delivery with scoped consistency and accuracy results |
-
-The default required path is C0→C2→C3→C5→C6→C7→C8→C9→C10. C1/C4 keep their original performance roles but do not block consistency-only delivery. Enable them only when performance work is requested. A slow implementation may pass; copied scores, missing gradients, zero updates or unexecuted full-model checks cannot.
-
-Use the [correctness-first implementation guide](skills/train-inference-consistency/references/correctness-first.md) for concrete construction choices. Each stage specifies prerequisites, code work, measurements, required artifacts, exit conditions and failure routing. The skill also includes a model-independent first-divergence procedure and copyable Markdown records for handoff between agents.
-
-## Model guides and verification status
-
-| Model | Architecture-specific guidance | Full-model bitwise acceptance recorded by this skill project |
-|---|---|---|
-| [Qwen3-8B](skills/train-inference-consistency/models/qwen3-8b.md) | Dense attention, GEMM/norm/RoPE/logprob and distributed reductions | Verified in one scoped MI300X ROCm/vime/Megatron/vLLM run (2026-10-23), including full updates and exact resume; see the model guide for evidence and exclusions |
-| [Qwen3.8-27B](skills/train-inference-consistency/models/qwen38-27b.md) | Hybrid text path, convolution/recurrent state and attention transitions | Pending |
-| [Qwen3-30B-A3B](skills/train-inference-consistency/models/qwen3-30b-a3b.md) | Independent routing, dispatch, experts and ordered combine | Pending |
-| Other models | [Generic extension procedure](skills/train-inference-consistency/references/model-extension.md) | Determine from actual implementation and validation |
-
-These are development guides, not installed model implementations or universal guarantees. To add a model, add a Markdown profile describing its verified structure, numerical differences, proxy coverage and test matrix. The receiving agent implements missing code in the target project. A guide alone never marks a model verified.
-
-## Measured post-training environments and evidence
-
-Following this skill produced original-byte training–inference equality in the measured implementations below. Full acceptance also requires independent mathematical accuracy, effective updates and exact resumed continuation. The evidence page includes original JSON receipts, source bindings, complete server artifact paths and SHA-256 digests.
-
-| Model and full-model status | Post-training / rollout environment | Precision and execution scope | Measured bitwise evidence |
+| Model | Post-training framework | Training–inference consistency | Evidence |
 |---|---|---|---|
-| **Qwen3-8B — complete scoped acceptance** | vime + Megatron training, vLLM rollout; GRPO/PPO; AMD MI300X VF/gfx942; PyTorch2.12.0 / ROCm7.14 | Full36layers; BF16 model/KV, FP32 masters/main gradients/moments; TP/CP/PP/DP1; eager; batch1/2, prompts8/32 + response16 | [Three weight versions ×32 positions for each rollout↔old and rollout↔grad-actor pair; full effective updates and exact checkpoint resume](skills/train-inference-consistency/models/evidence/rocm-20261023.md#qwen3-8b) |
-| **Qwen3-30B-A3B — full-model acceptance in progress** | vime + Megatron training, vLLM rollout; GRPO/PPO; AMD MI300X VF/gfx942; PyTorch2.12.0 / ROCm7.14 | Full48layers,128experts/top8; BF16 model/KV/main gradients, CPU FP32 masters/moments; TP/CP/PP/DP/EP1; same declared input matrix | [Three weight versions ×32 score positions per independent pair and ×3,360 MoE layer-rows/9 fields; two full updates audited; full checkpoint saved; restored continuation pending](skills/train-inference-consistency/models/evidence/rocm-20261023.md#qwen3-30b-a3b) |
+| [Qwen3-8B](skills/train-inference-consistency/models/qwen3-8b.md) | vime + Megatron; vLLM rollout | Bitwise exact; effective updates and checkpoint resume verified | [Results](skills/train-inference-consistency/models/evidence/rocm-20261023.md#qwen3-8b) |
+| [Qwen3-30B-A3B](skills/train-inference-consistency/models/qwen3-30b-a3b.md) | vime + Megatron; vLLM rollout | Bitwise exact forward and MoE comparisons; full resume verification pending | [Progress and evidence](skills/train-inference-consistency/models/evidence/rocm-20261023.md#qwen3-30b-a3b) |
 
-Both use exact task-specific implementations and source patches. C1/C4 are `not-required`; performance is `not evaluated`. The 30B snapshot is dated in the evidence page and is not a completed C9/C10 claim. These results do not automatically validate verl, another framework, broader inputs or another environment.
+Measured on AMD MI300X with ROCm and BF16 models. Results apply to the tested implementations and ranges; the evidence page records exact environments, original results and limitations.
 
-## Contents and history
+## Use the skill
 
-All tracked deliverables on `main` are Markdown. The portable skill contains `SKILL.md`, `references/`, `models/` and `templates/`; it needs no files outside that directory. `AGENTS.md` describes maintenance of this documentation repository.
+Copy the complete `skills/train-inference-consistency/` directory into your agent's skill directory, or give the agent its `SKILL.md` path.
 
-The earlier Python toolkit, shared-prefix runtime, tests and CLI remain available on [archive/runtime-v0.3](https://github.com/RL-Align/RL-Consistency/tree/archive/runtime-v0.3). They are historical experiments, not prerequisites or default execution paths for this skill. Their CPU checks do not establish full-model GPU acceptance.
+> Use this skill to implement and verify bitwise training–inference consistency for MODEL in TRAINING_REPO and ROLLOUT_REPO on HARDWARE. Preserve independent execution and real gradients, updates and resume. Record evidence and any remaining blockers. Do not optimize performance.
+
+The workflow can be adapted to other post-training frameworks, including verl or a custom framework; each implementation needs its own validation. See the [ROCm/vime setup guide](skills/train-inference-consistency/references/vime-rocm.md) for the measured stack.
+
+## Contribute
+
+Contribute English Markdown model guides, implementation lessons and measured evidence. Start with the [model extension guide](skills/train-inference-consistency/references/model-extension.md). Keep runtime code and executable tests in the target framework repositories.
+
+This project distributes Markdown guidance with no required RL-Kernel dependency. Earlier runtime experiments remain on [archive/runtime-v0.3](https://github.com/RL-Align/RL-Consistency/tree/archive/runtime-v0.3).
