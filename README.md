@@ -18,6 +18,8 @@ Example task:
 
 If details are missing, the agent first inspects the accessible target projects, completes the inventory and records the smallest remaining blocker. It does not invent weights, device results or implementation support.
 
+For AMD GPU validation with vime, follow the [ROCm/vime setup and agent task](skills/train-inference-consistency/references/vime-rocm.md). It includes a dedicated Docker workspace, environment probes, source/dependency checks and a copyable implementation task for Qwen3-8B followed by Qwen3-30B-A3B. Reusing an existing ROCm image does not make RL-Kernel a dependency; verify the actual worker paths after removing any prior integration.
+
 ## Workflow
 
 | Stage | Agent outcome |

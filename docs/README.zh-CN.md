@@ -8,6 +8,8 @@
 
 将整个 `skills/train-inference-consistency/` 文件夹放到该 agent 的 skill 目录，或者让它直接读取 [SKILL.md](../skills/train-inference-consistency/SKILL.md)。保留相对路径引用的 Markdown 文件。
 
+如果准备在 AMD 卡上用 vime 验证，直接按 [ROCm/vime 环境与 agent 任务](../skills/train-inference-consistency/references/vime-rocm.md) 操作：从现有镜像创建独立容器，检查并剥离旧 RL-Kernel 接入，再让 agent 修改实际 vime/Megatron/vLLM 路径。文档含可复制的 Docker 命令、环境探测和完整任务提示。先做 Qwen3-8B，再做 Qwen3-30B-A3B；环境安装成功与模型一致性验收分别记录。
+
 可以直接给它这段任务：
 
 > 使用这个 train-inference-consistency skill，为【模型】在【训练仓库】与【推理仓库】、【硬件】上实现训推 bitwise 一致性。先检查真实 checkpoint、框架源码和当前执行路径，再按 C0–C10 推进。代码和测试写进目标项目；独立采集 rollout、old-logprob 重算与 actor forward；保留原始失败样本和每关证据。不考虑性能，优先实现简单、可控制计算顺序的公共算术路径，允许逐 token 计算和串行规约。C1/C4 标记为 not-required；保留明确要求的模型、硬件和执行行为，未实际执行的验证保持待完成。

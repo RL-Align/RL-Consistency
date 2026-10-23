@@ -9,6 +9,8 @@ Implement and verify consistency in the user's target model/framework repositori
 
 Treat “absolute consistency” as original-byte equality within an explicit model, weight version, input domain, precision, execution path and environment. Keep independent numerical accuracy mandatory. Performance optimization is optional and disabled by default; a slow correct implementation can be the final delivery. Never advertise an unmeasured scope.
 
+For AMD ROCm with vime, use [vime-rocm.md](references/vime-rocm.md) to prepare an isolated container, inspect the existing stack, bind editable training/rollout sources and launch the implementation task without RL-Kernel. Other environments keep the generic workflow below.
+
 ## Begin with the actual task
 
 1. Read the target repositories' instructions. Inspect available checkpoints, framework sources, device/runtime details and existing results before asking for missing information. Identify the rollout, old-logprob recompute and grad-enabled actor callsites actually used by the training job.
