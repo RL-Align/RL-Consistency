@@ -165,6 +165,25 @@ docker run --rm --network none --entrypoint /bin/bash "$CONSISTENCY_IMAGE_ID" \
 缺失 `vllm_router` 等纯上层依赖时，先按当前 vime 的 requirements 确认包名，
 使用明确版本且不替换现有 ROCm 包的安装方式；保留原失败记录与安装日志。
 
+## 验证实际入口，而不只验证 import
+
+已确认可导入的 Megatron wheel 仍可能缺少模型构造时才加载的子模块
+（例如 `megatron.post_training`）。用选定 vime 的实际转换/模型构造入口验证；
+失败后先查该 vime 提交的 ROCm 配方所固定的完整源码版本。保留原 wheel
+快照与失败证据，再绑定完整源码。逐项审阅 AMD 补丁：设备修复与
+允许缺失权重、partial-load 等语义放宽必须分开；不能为启动成功静默放宽权重完整性。
+选择 unfused attention 时，也要核对继承的 Transformer Engine 环境开关，
+避免命令行与 `NVTE_FUSED_ATTN` 等设置冲突。
+
+vLLM 的 frontend CLI 模块位置、健康检查端点和 sampler/runner 类型会随提交变化。
+按实际源码做功能探测，并同时覆盖参数发现与真正的服务器启动路径。
+若旧的生成健康检查端点明确返回 404，可在已确认接口上做真实的一 token
+生成探测；不能把普通存活检查当作生成就绪，也不能把 503/生成失败吞成成功。
+捕获 hook 必须在真实 worker 中确认目标类型与执行次数；切换 legacy/v2 runner
+是范围变化，需要记录，不能将一个 runner 的证据外推给另一个。
+未选用的可选传输后端不应因无条件 import 阻塞默认路径；修复条件导入并测试缺包场景，
+不要据此给整个镜像补装未经核对的依赖。
+
 ## 由 agent 整理可修改的运行环境
 
 1. **冻结实际环境。** 检查镜像原有 vime、Megatron、vLLM 的加载路径、源码提交、未提交修改、已编译扩展和必要 AMD 补丁。记录 ROCm/PyTorch/Transformer Engine/RCCL/Ray 版本、设备映射及相关环境变量。只记录与任务有关的配置，避免把凭据混入日志。检查模型快照、配置、tokenizer 和权重分片是否齐全，解析缓存符号链接，记录内容身份。
