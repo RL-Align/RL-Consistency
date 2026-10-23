@@ -23,6 +23,8 @@ Record expected coverage before execution. Independently execute each side/repea
 
 Carry the producer's stable sample ID through the actual batch builder, DP partition and microbatch fields. A local partition index is a position in the current rollout, not necessarily that sample ID. They can coincide at theta0 and diverge at theta1, or after reordering/resume. Preserve both fields when useful, and test a case where they deliberately differ. Validate identity and coverage before an optimizer advances the policy version; do not repair a mismatch by renumbering captured rows without an observed mapping.
 
+A serving worker also handles control and readiness requests. Predeclare how required training samples are identified, then classify each request using its actual metadata before requiring optional outputs such as logprobs. A one-token health generation may legitimately request no scores; an observer must not crash it or count it as a policy sample. Retain excluded control requests and reasons separately, and still fail if any declared sample lacks its required score or position. Test both an untagged no-logprob health request and a declared no-logprob sample; only the former may be excluded.
+
 ## Comparison procedure
 
 1. Validate provenance and scope compatibility, including synchronized weights and scoring semantics. If incompatible, report blocked/incomparable and resolve the mismatch.
