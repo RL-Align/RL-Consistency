@@ -17,6 +17,10 @@ Internal worker request IDs may differ from public response IDs. Record their as
 
 Hooks that copy GPU tensors to the CPU can change scheduling. Record this instrumentation scope and preserve physical layouts. Use identical saved inputs for repeated actual-provider replay to isolate arithmetic, then rerun the original failing path with the targeted repair. An incomplete first-forward capture cannot certify every request or decode step.
 
+A sampler call is not necessarily an emitted response token. Chunked prefill can produce placeholder samples which the actual engine later discards. Observe the runner's real discard/validity mask at the sampling boundary, record excluded rows and reasons separately, and advance logical response positions only for emitted tokens. Still require every declared response position exactly once. Do not remove unexpected rows merely to make a comparator pass; preserve rejected captures and rerun with the corrected boundary semantics.
+
+Enabling prefix caching does not prove cache reuse. Use prompts longer than the actual cache block and record observed cached-token counts or equivalent engine metadata. Compare independent cache-off/cache-on executions and fresh full-prefill scoring against cached decode at every declared response position; generation text equality is insufficient.
+
 ## Follow the semantic DAG
 
 For every node whose outputs differ, inspect its input ports, state, repeat stability and predecessor coverage. A node with matching incoming values/state but differing outputs is a useful local candidate. If inputs already differ, trace its predecessors first. If an ancestor is missing or opaque, report the smallest observed interval and unresolved coverage.
