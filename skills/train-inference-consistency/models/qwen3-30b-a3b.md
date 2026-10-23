@@ -42,3 +42,7 @@ If the contract forbids token dropping, verify actual counts/capacity behavior r
 On mismatch, inspect router inputs→logits→softmax→IDs/weights, dispatch, expert outputs and combine. Equal final logprobs do not excuse differing required routes. C7 needs independent router/expert/combine math and gradient tests away from top-k discontinuities; test exact ties separately. Record the actual auxiliary-loss objective rather than silently zeroing it to obtain parity.
 
 After effective updates, verify synchronized router/expert weights, same-version independent routes and output comparisons, then full-model context/topology and uninterrupted/resumed behavior. Profile dispatch/all-to-all, grouped GEMM and combine against the frozen native baseline only if performance work is explicitly requested. Missing device providers, capture or full-model evidence remains an explicit blocker.
+
+## Published evidence receipts
+
+See the [measured environment and original receipt table](evidence/rocm-20261023.md#qwen3-30b-a3b) for the dated acceptance status, raw comparison excerpts, exact source bindings, artifact paths and SHA-256 digests. Complete acceptance and in-progress measurements are explicitly distinguished.
