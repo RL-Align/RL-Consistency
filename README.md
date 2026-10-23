@@ -6,7 +6,7 @@ Give this skill to an agent together with a model checkpoint, training/rollout r
 
 The skill has no Python package, bundled kernels, launcher or required RL-Kernel dependency. It can guide work on existing engines or a user-requested custom backend. Reading the skill does not establish consistency; the resulting implementation must pass its declared checks.
 
-[中文说明](docs/README.zh-CN.md) · [Start the skill](skills/train-inference-consistency/SKILL.md) · [C0–C10](skills/train-inference-consistency/references/gates.md)
+[Usage guide](docs/usage.md) · [Start the skill](skills/train-inference-consistency/SKILL.md) · [C0–C10](skills/train-inference-consistency/references/gates.md)
 
 ## Use with another agent
 
