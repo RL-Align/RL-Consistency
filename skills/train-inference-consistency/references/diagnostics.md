@@ -9,6 +9,14 @@ Use this procedure on existing native paths even when no model guide or strict p
 3. Predeclare expected requests/tokens/nodes/ranks and record what cannot be observed. Capture each native side twice from equivalent reset state into four independent attempt directories. Check same-side repeatability before attributing stable cross-path differences.
 4. Compare logically aligned raw bytes and coverage using [evidence.md](evidence.md). Keep rollout/old and rollout/actor cases separate. If weights, semantics, inputs or state differ, resolve that before blaming arithmetic.
 
+## Map scheduling and repeated module calls explicitly
+
+One external batch need not correspond to one internal forward. An asynchronous engine can schedule different request subsets in the first forward of two otherwise identical runs. Capture the actual request/token/position-to-row mapping; label unmatched scopes `incomparable`, rather than treating different physical shapes as numerical instability or silently dropping rows. Token values alone are not a general identity: repeated tokens, duplicate prompts and reused positions require explicit request and logical-position keys.
+
+Internal worker request IDs may differ from public response IDs. Record their association at the actual execution boundary; do not invent a suffix-stripping rule after comparison fails. Reused module objects (for example a shared RoPE instance) also require logical layer/call-site or invocation identity. A module-name-only dictionary can overwrite several executions and fabricate coverage.
+
+Hooks that copy GPU tensors to the CPU can change scheduling. Record this instrumentation scope and preserve physical layouts. Use identical saved inputs for repeated actual-provider replay to isolate arithmetic, then rerun the original failing path with the targeted repair. An incomplete first-forward capture cannot certify every request or decode step.
+
 ## Follow the semantic DAG
 
 For every node whose outputs differ, inspect its input ports, state, repeat stability and predecessor coverage. A node with matching incoming values/state but differing outputs is a useful local candidate. If inputs already differ, trace its predecessors first. If an ancestor is missing or opaque, report the smallest observed interval and unresolved coverage.
