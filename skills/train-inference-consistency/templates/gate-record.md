@@ -1,6 +1,6 @@
 # Gate attempt record
 
-Gate: TODO. Attempt ID: TODO. Status: not-started. Bound task/run: TODO.
+Gate: TODO. Attempt ID: TODO. Status: not-started. Bound task/run: TODO. Acceptance mode: consistency-only unless explicitly changed.
 
 ## Preconditions and identity
 
@@ -32,4 +32,4 @@ Record independent rollout/old-logprob/actor captures separately, plus repeats, 
 - Next action, actual command or file/function to implement, and blocker: TODO.
 - Required decision and its actual source, if applicable: TODO.
 
-A completed record without actual artifacts cannot be marked pass. Separate bitwise acceptance, accuracy tolerances and performance conclusions.
+Use not-required only for C1/C4 when performance was not requested, with an explicit reason; it is not a successful experiment. A completed record without actual artifacts cannot be marked pass. Separate bitwise acceptance, accuracy tolerances and performance conclusions.

@@ -1,6 +1,6 @@
 # Extend the skill to another model
 
-Use the common C0–C10 procedure for any model family. A new Markdown guide records architecture knowledge and required cases; it does not implement kernels or certify the model. Put executable implementation, capture adapters, reference code and tests in the target projects.
+Use the common C0–C10 procedure for any model family. A new Markdown guide records architecture knowledge and required cases; it does not implement kernels or certify the model. Put executable implementation, capture adapters, reference code and tests in the target projects. Default to [correctness-first.md](correctness-first.md): implement simple common arithmetic where necessary and leave performance work optional.
 
 ## Discover before specializing
 

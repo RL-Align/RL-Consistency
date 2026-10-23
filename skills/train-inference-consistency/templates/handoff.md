@@ -4,11 +4,12 @@ Task/run ID and latest ledger: TODO. Current stage/status: TODO.
 
 ## Resume context
 
-- User goal, requested scope and applicable authorization: TODO.
+- User goal, acceptance mode, requested scope and applicable authorization: TODO.
+- Chosen arithmetic path and performance policy: consistency-only by default; no speed target.
 - Target repositories/worktrees, refs, uncommitted changes and ownership: TODO.
 - Checkpoint/config/tokenizer/master/deployment/fixture identities: TODO.
 - Actual environment, loaded providers, modes and process groups: TODO.
-- Native baseline revision, immutable artifact roots and raw logs: TODO.
+- Immutable artifact roots and raw logs: TODO; native baseline revision only when performance is enabled.
 - Valid prerequisites and hash checks performed: TODO.
 
 ## Current finding

@@ -1,6 +1,8 @@
 # C1 — Establish a strong native baseline
 
-**Entry:** C0 and a defined target workload. Keep native and strict work isolated by worktree/config/output directory.
+**Applicability:** optional performance track. In default `consistency-only` mode record C1 as `not-required`, reason `performance not requested`, and proceed without native tuning or benchmarks. This does not waive C7 independent mathematical references or required model identity inspection.
+
+**Entry when enabled:** C0 and a defined target workload. Keep native and strict work isolated by worktree/config/output directory.
 
 ## Implement and measure
 
@@ -15,4 +17,4 @@
 
 Retain benchmark commands, resolved config, environment/source identities, native tuning trials, raw per-step timings, warmup policy, output-token/work counts, memory data, profiles and the freeze/review record. Pass when the baseline is reproducible, reasonably tuned for the declared workload and accepted under the target project's review policy.
 
-A mismatching native path can still be the native baseline; report its consistency behavior separately. Do not fix the native reference by secretly enabling strict providers. A changed workload or baseline revision needs new measurements and a new freeze record. C10 must use this frozen baseline, not a cherry-picked trial.
+A mismatching native path can still be the native baseline; report its consistency behavior separately. Do not fix the native reference by secretly enabling strict providers. A changed workload or baseline revision needs new measurements and a new freeze record. When reporting performance at C10, use this frozen baseline, not a cherry-picked trial.

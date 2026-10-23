@@ -29,7 +29,7 @@ Inspect the selected provider and its device support. An optional acceleration p
 
 At C3 include chunk-versus-recurrent processing, convolution/recurrent resets, packed request boundaries, cache reorder/reuse, prefix reuse and equivalent logical state. Compare states only after establishing their semantic correspondence; equal byte shape alone is insufficient.
 
-At C5 observe training's actual chunk/stateful path and rollout's actual recurrent/cached path, plus independent old-logprob and actor execution. Do not replace both with an uncached full-prefix implementation and claim the original cache/state routes passed.
+At C5 observe the actual training and rollout implementations, plus independent old-logprob and actor execution. Following [correctness-first.md](../references/correctness-first.md), a common sequential recurrence with actor autograd is a valid final choice; optimized chunk/scan evaluation is optional. Preserve required cache/state interfaces and test their transitions. An uncached full-prefix implementation does not establish acceptance of an explicitly required cached path.
 
 At C6/C7 independently validate projection/gate math, convolution, recurrence, gated norm and parameter/input gradients. A recurrence-only reference cannot validate the whole block. At C8/C9 rebuild or invalidate all weight-dependent recurrence/convolution/KV state after synchronization; add long-context cases and the declared checkpoint cache-restore/rebuild policy.
 

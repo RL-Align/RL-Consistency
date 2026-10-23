@@ -19,7 +19,7 @@ Reuse compatible Dense components only after checking norm, RoPE, attention, GEM
 | Combine | Logical return ordering, weighted accumulation and fixed ordering where the contract requires it |
 | Objective/backward | Router/expert/shared-path gradients, auxiliary losses, active parameter coverage and distributed scaling |
 
-Choose and implement a deterministic exact-tie rule when required; do not assume native `topk` guarantees it. Record normalized weights before and after applied casts as appropriate. Inspect the actual accumulation implementation: a recorded ordering list does not make an unordered atomic combine invariant.
+Use [correctness-first.md](../references/correctness-first.md): sequential expert evaluation and ordered combine are valid final choices without a speed target. Choose and implement a deterministic exact-tie rule when required; do not assume native `topk` guarantees it. Record normalized weights before and after applied casts as appropriate. Inspect the actual accumulation implementation: a recorded ordering list does not make an unordered atomic combine invariant.
 
 Record dense/expert TP, EP, DP and PP groups independently. These groups can overlap on the same ranks; do not multiply nominal TP and EP dimensions to infer GPU count. Verify real weight redistribution and expert ownership between training and rollout.
 
@@ -31,4 +31,4 @@ If the contract forbids token dropping, verify actual counts/capacity behavior r
 
 On mismatch, inspect router inputs→logits→softmax→IDs/weights, dispatch, expert outputs and combine. Equal final logprobs do not excuse differing required routes. C7 needs independent router/expert/combine math and gradient tests away from top-k discontinuities; test exact ties separately. Record the actual auxiliary-loss objective rather than silently zeroing it to obtain parity.
 
-After effective updates, verify synchronized router/expert weights, same-version independent routes and output comparisons, then full-model context/topology and uninterrupted/resumed behavior. Profile dispatch/all-to-all, grouped GEMM and combine against the frozen native baseline at equal work. Missing device providers, capture or full-model evidence remains an explicit blocker.
+After effective updates, verify synchronized router/expert weights, same-version independent routes and output comparisons, then full-model context/topology and uninterrupted/resumed behavior. Profile dispatch/all-to-all, grouped GEMM and combine against the frozen native baseline only if performance work is explicitly requested. Missing device providers, capture or full-model evidence remains an explicit blocker.

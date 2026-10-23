@@ -1,6 +1,6 @@
-# C6 — Integrate backward and measure training cost
+# C6 — Integrate backward and verify gradient coverage
 
-**Entry:** C5 independent forward parity. This gate proves backward integration/coverage and cost; mathematical gradient acceptance follows at C7.
+**Entry:** C5 independent forward parity. This gate proves backward integration/coverage; mathematical gradient acceptance follows at C7.
 
 ## Implement backward deliberately
 
@@ -10,10 +10,10 @@
 4. Implement missing gradient glue/custom kernels and target-project tests. Verify actor outputs remain connected to the intended trainable parameters, no diagnostic detach/no-grad path replaces them, and state ownership/lifetimes are correct.
 5. Inspect distributed gradient scaling, accumulation and reductions against the declared loss normalization and process groups. Sequence gathers with split-only backward and gathers requiring reduction are not interchangeable; verify actual replicated/sharded semantics.
 6. Execute real forward/backward on required cases. Check finite gradients, expected active parameter coverage and loss normalization. For conditional MoE paths, distinguish legitimately inactive experts from lost gradients and exercise enough fixtures to cover required experts/routes.
-7. Measure native/strict training step components at equal work: forward, backward, optimizer and synchronization. Compare with the recorded training budget; profile unexpected recomputation, saved-state memory or communication cost.
+7. Only when performance work is requested, measure native/strict forward, backward, optimizer and synchronization costs at equal work. In consistency-only mode, omit profiling and cost budgets. Slow backward is acceptable if required cases actually complete with valid gradients.
 
 ## Artifacts and exit
 
-Retain the per-module backward map, gradient/STE contract, saved-state description, target code/tests, observed gradient coverage/finiteness, memory and raw step timings. Pass when all required modules have executable gradient paths and measured cost satisfies the accepted budget/tradeoff.
+Retain the per-module backward map, gradient/STE contract, saved-state description, target code/tests, observed gradient coverage/finiteness and completed execution records. Pass when all required modules have executable gradient paths, expected saved-state behavior and complete gradient coverage. Timing/budget evidence is required only for an explicitly requested performance track.
 
-Do not claim gradients are mathematically correct merely because they are finite or nonzero; C7 supplies independent accuracy. If forward semantics or provider choices change, repeat affected C5/C3 checks. Missing gradients, unreviewed surrogate semantics or an unexplained budget violation remain blockers/failures rather than successful integration.
+Do not claim gradients are mathematically correct merely because they are finite or nonzero; C7 supplies independent accuracy. If forward semantics or provider choices change, repeat affected C5/C3 checks. Missing gradients or unresolved surrogate semantics remain blockers/failures. Missing timing or slow execution alone cannot block consistency-only acceptance; unfinished execution still cannot pass.

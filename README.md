@@ -1,8 +1,8 @@
 # RL-Consistency
 
-A **Markdown-only agent skill** for developing and verifying bitwise training–inference consistency through C0–C10.
+A **Markdown-only agent skill** for implementing and verifying bitwise training–inference consistency through C0–C10, with **no performance target by default**.
 
-Give this skill to an agent together with a model checkpoint, training/rollout repositories and a hardware target. The agent inventories the actual execution paths, implements the required numerical contracts in those target repositories, diagnoses divergence and collects evidence through full-model updates, resume and performance validation.
+Give this skill to an agent together with a model checkpoint, training/rollout repositories and a hardware target. The agent inventories the actual execution paths, implements the required numerical contracts in those target repositories, diagnoses divergence and collects evidence through full-model updates and resume. The agent may implement slow common arithmetic, sequential reductions or per-token execution; correctness acceptance has no throughput or latency threshold.
 
 The skill has no Python package, bundled kernels, launcher or required RL-Kernel dependency. It can guide work on existing engines or a user-requested custom backend. Reading the skill does not establish consistency; the resulting implementation must pass its declared checks.
 
@@ -14,7 +14,7 @@ Copy the complete `skills/train-inference-consistency/` directory into your agen
 
 Example task:
 
-> Use the train-inference-consistency skill in this checkout to develop bitwise consistency for MODEL in TRAINING_REPO and ROLLOUT_REPO on HARDWARE. Inspect the actual checkpoint and loaded implementations, then follow C0–C10. Implement changes and tests in the target repositories, retain independent rollout/old-logprob/actor evidence, and leave unexecuted gates pending. Preserve the requested production execution scope.
+> Use the train-inference-consistency skill in this checkout to develop bitwise consistency for MODEL in TRAINING_REPO and ROLLOUT_REPO on HARDWARE. Inspect the actual checkpoint and loaded implementations, then follow C0–C10. Implement changes and tests in the target repositories, retain independent rollout/old-logprob/actor evidence, and leave unexecuted gates pending. Do not optimize performance. Use the simplest correct implementation, preserve explicitly requested behavior, and mark C1/C4 not-required.
 
 If details are missing, the agent first inspects the accessible target projects, completes the inventory and records the smallest remaining blocker. It does not invent weights, device results or implementation support.
 
@@ -23,18 +23,20 @@ If details are missing, the agent first inspects the accessible target projects,
 | Stage | Agent outcome |
 |---|---|
 | C0 | Actual model/operator/engine inventory and comparison contract |
-| C1 | Strong native baseline, measured and frozen |
+| C1 | Optional native performance baseline; default `not-required` |
 | C2 | Representative reduced model with original dimensions and source weights |
 | C3 | Inference repeatability, batching and prefill/decode invariance within scope |
-| C4 | Structural performance checks and repairs |
+| C4 | Optional structural performance work; default `not-required` |
 | C5 | Independent old-logprob and grad-enabled actor forward both match rollout |
-| C6 | Complete backward integration and training cost assessment |
+| C6 | Complete backward integration and actual gradient coverage |
 | C7 | Independent mathematical forward, gradient and update accuracy |
 | C8 | Two effective updates with theta0/theta1/theta2 comparisons |
 | C9 | Full-model matrix and checkpoint-resume validation |
-| C10 | Reproducible delivery with scoped consistency and equal-work performance results |
+| C10 | Reproducible delivery with scoped consistency and accuracy results |
 
-Each stage specifies prerequisites, code work, measurements, required artifacts, exit conditions and failure routing. The skill also includes a model-independent first-divergence procedure and copyable Markdown records for handoff between agents.
+The default required path is C0→C2→C3→C5→C6→C7→C8→C9→C10. C1/C4 keep their original performance roles but do not block consistency-only delivery. Enable them only when performance work is requested. A slow implementation may pass; copied scores, missing gradients, zero updates or unexecuted full-model checks cannot.
+
+Use the [correctness-first implementation guide](skills/train-inference-consistency/references/correctness-first.md) for concrete construction choices. Each stage specifies prerequisites, code work, measurements, required artifacts, exit conditions and failure routing. The skill also includes a model-independent first-divergence procedure and copyable Markdown records for handoff between agents.
 
 ## Model guides and verification status
 

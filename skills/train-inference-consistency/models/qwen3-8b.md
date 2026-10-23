@@ -20,12 +20,12 @@ Map every operation to both training and rollout providers and their backward pa
 | Head/logprob | Vocabulary partition/gather, FP32 or declared accumulation, normalization and selected-token alignment |
 | Communication | Local partitions, rank reductions, sequence reconstruction and gradient normalization |
 
-Reuse an existing provider only after checking actual semantics and shapes. The skill has no mandatory external kernel dependency; the agent can reuse compatible available implementations or develop missing ones in the target project.
+Use [correctness-first.md](../references/correctness-first.md) for a common explicit Dense path; per-token projections, ordered norms/attention and serialized reductions may be final implementations. Reuse an existing provider only after checking actual semantics and shapes. The skill has no mandatory external kernel dependency; the agent can reuse compatible available implementations or develop missing ones in the target project.
 
 ## Proxy and required cases
 
 Start with a contiguous several-layer prefix if the inspected decoder pattern is uniform. Keep all per-layer dimensions/precision, embedding, final norm/head and selected source weights. Prove coverage in C2; a small hidden-size random model is a separate tooling fixture.
 
-At C3 cover repeat, batch/neighbours, padding/packing/permutation, chunked prefill, cached decode, graph mode and required sequence/topology boundaries. At C5 retain both independent old-logprob and real actor comparisons; matching inference repeats is insufficient. At C6/C7 cover input/parameter gradients and collective scaling. At C8/C9 verify effective updates, actual weight synchronization, cache/weight-preparation invalidation and restored execution.
+At C3 cover repeat and the declared batch/neighbours, padding/packing/permutation, chunked prefill, cached decode, graph and sequence/topology cases. Explicitly required modes remain mandatory; unspecified accelerations can be disabled and recorded at C0. At C5 retain both independent old-logprob and real actor comparisons; matching inference repeats is insufficient. At C6/C7 cover input/parameter gradients and collective scaling. At C8/C9 verify effective updates, actual weight synchronization, cache/weight-preparation invalidation and restored execution.
 
 Any prior Qwen3-8B result is reusable only with its original model/environment/scope/evidence and a justified compatibility check. This skill project currently records no complete C0–C10 full-model acceptance package. Report guide coverage separately from results of the target run.

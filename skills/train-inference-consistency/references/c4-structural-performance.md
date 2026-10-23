@@ -1,6 +1,8 @@
 # C4 — Remove structural performance defects
 
-**Entry:** C3 inference path and retained consistency fixtures. This gate inspects implementation structure; it is not independent accuracy (C7) or final performance acceptance (C10).
+**Applicability:** optional performance track. In default `consistency-only` mode record C4 as `not-required` and continue directly from C3 to C5. Deliberate host loops, serialized reductions and repeated computation may be valid final design choices. Correctness problems such as invalid state, a hang or an out-of-memory failure remain blockers to completing the required execution, regardless of this status.
+
+**Entry when enabled:** C3 inference path and retained consistency fixtures. This gate inspects implementation structure; it is not independent accuracy (C7) or final performance acceptance (C10).
 
 ## Profile and repair
 
@@ -9,7 +11,7 @@
 3. Inspect Graph/capture behavior when in scope: stable buffers, prepared weights, allocation rules, launch compatibility and actual captured kernels. A Graph flag without exercised execution proves nothing.
 4. Implement a targeted structural fix in the target project. Preserve masks, logical ordering, precision, reductions, state and backward requirements. Do not change the workload or disable native baseline optimizations to improve a comparison.
 5. Rerun impacted C3 cases and compare raw profiles before/after. If the numerical path changes, update its identity/contract and mark affected downstream results stale. Measure observer overhead separately.
-6. Record remaining bottlenecks and a concrete training-path budget for C6, tied to the native workload. Any deliberately slower reference path must remain labeled with its limited purpose/scope.
+6. Record remaining bottlenecks and a concrete training-path budget for C6, tied to the native workload. A deliberately slower implementation may be a final correctness path. Record its actual scope and measured cost only when undertaking this performance track.
 
 ## Artifacts and exit
 

@@ -8,7 +8,7 @@ Record checkpoint/config/tensor index, inspected source locations, loaded model 
 
 ## Scope and reuse
 
-State requested engines/hardware/topology/batch/context/cache/objective. List covered numerical providers with verified contracts, required glue, genuinely new operators/backward work and unsupported routes. Do not require an external kernel project solely because another model used it.
+State acceptance mode (default consistency-only), requested engines/hardware/topology/batch/context/cache/objective and chosen simple arithmetic path. List covered numerical providers with verified contracts, required glue, genuinely new operators/backward work and unsupported routes. Do not require an external kernel project solely because another model used it.
 
 ## Proxy coverage
 
@@ -22,7 +22,8 @@ Record selected original layers/tensors and why all required operator families/t
 | C3/C5 | TODO | TODO | not-started |
 | C6/C7 | TODO | TODO | not-started |
 | C8/C9 | TODO | TODO | not-started |
-| C1/C4/C10 | TODO | TODO | not-started |
+| C10 | Reproduction and supported correctness scope | TODO | not-started |
+| C1/C4 (optional) | Only if performance is requested | TODO when enabled | not-required by default |
 
 ## Supported claims
 

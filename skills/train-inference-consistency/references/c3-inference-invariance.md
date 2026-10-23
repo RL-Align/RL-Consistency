@@ -4,8 +4,8 @@
 
 ## Develop the numerical path
 
-1. Select or implement target-project providers according to the numerical contract: GEMM/attention reductions, norms, RoPE, activations/residuals, head/logprob, stateful blocks and collectives. Check dispatch over real shapes and prevent unsupported fallback from being reported as strict execution.
-2. Keep the actual requested batching, cache, graph and prefill/decode modes. An uncached single-prefix reference can isolate a difference; it does not establish invariance of the cached/batched production route.
+1. Follow [correctness-first.md](correctness-first.md). Select or implement target-project providers according to the numerical contract: GEMM/attention reductions, norms, RoPE, activations/residuals, head/logprob, stateful blocks and collectives. Check dispatch over real shapes and prevent unsupported fallback from being reported as strict execution.
+2. Keep explicitly required batching, cache, graph and prefill/decode behavior. Choose simpler slow implementations and disable optional accelerations as needed. If caching/Graph is unspecified, record the chosen implementation and tested scope at C0; an uncached implementation may be the final path but establishes no cached-route claim. Serial internal processing must still exercise required external batch cases.
 3. Implement capture with logical token/state mappings and original-dtype bytes. Retain actual worker routes and expected rank/shard coverage. Check masks, positions and cache ownership before interpreting numerical differences.
 
 ## Execute the matrix
@@ -24,4 +24,4 @@ Declare unavailable or inapplicable cases before acceptance with a scope reason.
 
 Retain provider implementations/guards, regression cases, matrix, independent captures, byte comparison results, coverage receipts and loaded-worker identities. Pass only when all required inference pairs match within the declared scope.
 
-On failure, follow [diagnostics.md](diagnostics.md), preserve the smallest failing fixture and implement a targeted fix. Rerun that case plus affected shape/cache/routing/repeat cases; keep missing coverage blocked. Equality of final generated text alone cannot pass. Continue to C4 with a reproducible inference path and its remaining performance observations.
+On failure, follow [diagnostics.md](diagnostics.md), preserve the smallest failing fixture and implement a targeted fix. Rerun that case plus affected shape/cache/routing/repeat cases; keep missing coverage blocked. Equality of final generated text alone cannot pass. Continue directly to C5 in consistency-only mode. Continue through C4 only when performance work is requested.
