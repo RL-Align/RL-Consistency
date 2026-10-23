@@ -51,6 +51,17 @@ Use the [correctness-first implementation guide](skills/train-inference-consiste
 
 These are development guides, not installed model implementations or universal guarantees. To add a model, add a Markdown profile describing its verified structure, numerical differences, proxy coverage and test matrix. The receiving agent implements missing code in the target project. A guide alone never marks a model verified.
 
+## Measured post-training environments and evidence
+
+Following this skill produced original-byte training–inference equality in the measured implementations below. Full acceptance also requires independent mathematical accuracy, effective updates and exact resumed continuation. The evidence page includes original JSON receipts, source bindings, complete server artifact paths and SHA-256 digests.
+
+| Model and full-model status | Post-training / rollout environment | Precision and execution scope | Measured bitwise evidence |
+|---|---|---|---|
+| **Qwen3-8B — complete scoped acceptance** | vime + Megatron training, vLLM rollout; GRPO/PPO; AMD MI300X VF/gfx942; PyTorch2.12.0 / ROCm7.14 | Full36layers; BF16 model/KV, FP32 masters/main gradients/moments; TP/CP/PP/DP1; eager; batch1/2, prompts8/32 + response16 | [Three weight versions ×32 positions for each rollout↔old and rollout↔grad-actor pair; full effective updates and exact checkpoint resume](skills/train-inference-consistency/models/evidence/rocm-20261023.md#qwen3-8b) |
+| **Qwen3-30B-A3B — full-model acceptance in progress** | vime + Megatron training, vLLM rollout; GRPO/PPO; AMD MI300X VF/gfx942; PyTorch2.12.0 / ROCm7.14 | Full48layers,128experts/top8; BF16 model/KV/main gradients, CPU FP32 masters/moments; TP/CP/PP/DP/EP1; same declared input matrix | [Three weight versions ×32 score positions per independent pair and ×3,360 MoE layer-rows/9 fields; two full updates audited; full checkpoint saved; restored continuation pending](skills/train-inference-consistency/models/evidence/rocm-20261023.md#qwen3-30b-a3b) |
+
+Both use exact task-specific implementations and source patches. C1/C4 are `not-required`; performance is `not evaluated`. The 30B snapshot is dated in the evidence page and is not a completed C9/C10 claim. These results do not automatically validate verl, another framework, broader inputs or another environment.
+
 ## Contents and history
 
 All tracked deliverables on `main` are Markdown. The portable skill contains `SKILL.md`, `references/`, `models/` and `templates/`; it needs no files outside that directory. `AGENTS.md` describes maintenance of this documentation repository.
