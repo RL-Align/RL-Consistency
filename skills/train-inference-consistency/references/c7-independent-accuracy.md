@@ -11,6 +11,12 @@
 5. Compare a controlled optimizer step from identical parameters, gradients and optimizer state against an independent reference for the claimed update semantics. Include master/deployment casts and quantization where applicable; do not infer optimizer correctness from changed weights alone.
 6. Report max absolute/relative error and appropriate additional metrics with reference definitions, denominator policy, tolerance source and complete case results. Retain every failing fixture. Choose tolerances before observing acceptance results; a change requires a new reviewed precision contract and a new run.
 
+## Cover numerical conditioning, not only tensor shapes
+
+A reduced-depth proxy can produce diffuse logits while the full model produces probabilities extremely close to one, even when all layer dimensions and source weights are preserved. Include concentrated-distribution fixtures for log-softmax, entropy, loss and their gradients. Check the declared relative/denominator policy against independently differentiated references; a small absolute error does not waive a failed predeclared relative criterion.
+
+When a full-model fixture exposes such a gap, preserve its actual logits, masks, loss and gradients, reproduce the failure with the original provider, and carry that fixture into the repaired provider's regressions. Trace precision through normalization, exp/products/reductions, casts and backward, not only the final score dtype. Higher internal precision may be a correctness repair, but it changes the numerical contract: rerun affected invariance, independent training branches, accuracy and update evidence before restoring their pass status. Longer or easier fixtures cannot replace the original failure case.
+
 ## Artifacts and exit
 
 Retain reference source/provenance, tested source/build, fixtures, raw outputs/gradients/update state, coverage and error reports, tolerance/STE decisions and failures. Pass only when the declared forward, gradient and update accuracy scope meets its predeclared criteria independently of bitwise parity.
