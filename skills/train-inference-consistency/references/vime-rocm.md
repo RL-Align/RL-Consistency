@@ -7,6 +7,7 @@
 - [职责与路径](#职责与路径)
 - [在宿主机创建容器](#在宿主机创建容器)
 - [在容器中准备代码与环境记录](#在容器中准备代码与环境记录)
+- [先排除工作目录挂载遮蔽镜像源码](#先排除工作目录挂载遮蔽镜像源码)
 - [由 agent 整理可修改的运行环境](#由-agent-整理可修改的运行环境)
 - [交给 agent 的任务](#交给-agent-的任务)
 - [运行与交付](#运行与交付)
@@ -127,6 +128,42 @@ PY
 这是环境探测，不是 C3/C5 验收。框架出现 `IMPORT_FAILED` 时，先记录并修复环境，不能直接启动完整训练。PyTorch 在 ROCm 上仍使用 `torch.cuda` API。探测到的 `gcnArchName` 决定需要编译时的架构；不能因为某个脚本面向其他 AMD 卡，就把实际 `gfx942` 改成那个架构。
 
 现在可以让 agent 进入该容器，以 `/workspace` 为工作目录，读取后面的任务。agent 安装在宿主机时，也可通过 `docker exec rl-consistency-ct ...` 执行容器内命令；最终验收必须发生在记录的容器与设备上。
+
+## 先排除工作目录挂载遮蔽镜像源码
+
+容器中的 `import vllm` 失败不一定表示镜像没有安装 vLLM。
+上面的 `-v "$CONSISTENCY_ROOT:/workspace"` 会遮蔽镜像原有的整个
+`/workspace`；镜像中的 editable 安装或 `easy-install.pth` 可能仍指向
+被遮蔽的源码。先检查 `.pth`、`.egg-link` 和 editable finder 的目标是否存在，
+再决定是否安装或编译。仅从 `pip list` 或 `find_spec` 不能区分缺包与失效绑定。
+
+在宿主机记录目标容器的精确 image ID，并用不挂 GPU、不挂工作目录、
+不联网的临时容器查看原始目录。例如，以下检查不运行模型：
+
+```bash
+CONSISTENCY_IMAGE_ID="$(docker inspect --format '{{.Image}}' rl-consistency-ct)"
+docker run --rm --network none --entrypoint /bin/bash "$CONSISTENCY_IMAGE_ID" \
+  -c 'ls -la /workspace'
+```
+
+若已确认所需源码就在镜像中，可创建一个**本任务独有的停止状态容器**，
+用 `docker cp` 把确认过的源码目录及编译扩展恢复到独立工作区。目标目录
+必须尚不存在，避免覆盖已有修改。保留 Git 提交、原有补丁和扩展文件；
+核对当前 vime 所需 API 后，在目标运行容器中重新验证加载路径。
+复制源码不等于已经证明 API/ABI 兼容。复制后的所有者可能与容器运行用户不同；
+只对已确认属于本任务的路径处理 Git ownership 检查，不能全局关闭检查。
+完成后仅删除本任务创建的辅助容器。
+
+从包安装目录恢复 Megatron 源码时，记录原始 dist-info 和逐文件内容身份。
+上游 SHA 不可取得时明确记为未知，不把版本号当作提交。确认
+`megatron.core` **和** `megatron.training` 都从独立目录加载；
+只追加一个 namespace 路径可能仍优先选中旧的 site-packages 实现。
+
+环境探测要以新进程或脚本文件方式运行，而不只在仓库根目录执行
+`python -c`：后者的当前目录可能让未安装的 vime 看似可以导入。
+按下节的 editable 安装绑定源码后，重跑独立探测，并在真实 worker 中再次核对。
+缺失 `vllm_router` 等纯上层依赖时，先按当前 vime 的 requirements 确认包名，
+使用明确版本且不替换现有 ROCm 包的安装方式；保留原失败记录与安装日志。
 
 ## 由 agent 整理可修改的运行环境
 
