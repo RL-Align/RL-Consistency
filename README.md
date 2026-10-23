@@ -11,7 +11,7 @@ Give your agent the skill, a model checkpoint, your post-training framework and 
 | Model | Post-training framework | Training–inference consistency | Evidence |
 |---|---|---|---|
 | [Qwen3-8B](skills/train-inference-consistency/models/qwen3-8b.md) | vime + Megatron; vLLM rollout | Bitwise exact; effective updates and checkpoint resume verified | [Results](skills/train-inference-consistency/models/evidence/rocm-20261023.md#qwen3-8b) |
-| [Qwen3-30B-A3B](skills/train-inference-consistency/models/qwen3-30b-a3b.md) | vime + Megatron; vLLM rollout | Bitwise exact forward and MoE comparisons; full resume verification pending | [Progress and evidence](skills/train-inference-consistency/models/evidence/rocm-20261023.md#qwen3-30b-a3b) |
+| [Qwen3-30B-A3B](skills/train-inference-consistency/models/qwen3-30b-a3b.md) | vime + Megatron; vLLM rollout | Bitwise exact; MoE, effective updates and checkpoint resume verified | [Results](skills/train-inference-consistency/models/evidence/rocm-20261023.md#qwen3-30b-a3b) |
 
 Measured on AMD MI300X with ROCm and BF16 models. Results apply to the tested implementations and ranges; the evidence page records exact environments, original results and limitations.
 
