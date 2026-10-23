@@ -40,7 +40,7 @@
 
 | 模型 | 已提供的开发指南 | 完整模型绝对一致性验收 |
 |---|---|---|
-| Qwen3-8B | Dense、attention、GEMM、norm、RoPE、logprob 与规约 | 本 skill 项目未记录完整验收；已有外部结果只适用于其原始证据范围 |
+| Qwen3-8B | Dense、attention、GEMM、norm、RoPE、logprob 与规约 | 已完成一次限定范围的 MI300X ROCm/vime/Megatron/vLLM 完整验收（2026-10-23），含有效更新与精确恢复；见 [8B 实测记录](../skills/train-inference-consistency/models/qwen3-8b.md#measured-rocm-run--2026-10-23)，其他环境与模型不外推 |
 | Qwen3.8-27B | Hybrid 文本路径、卷积状态、递归状态与注意力层交互 | 待完成 |
 | Qwen3-30B-A3B | 独立路由、dispatch、专家计算和 combine | 待完成 |
 | 其他模型 | 通用模型扩展模板与排错流程 | 按目标环境实际开发和验收 |
