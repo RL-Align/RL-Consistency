@@ -8,6 +8,12 @@ For a uniform repeated MoE decoder, start with a contiguous four-layer proxy if 
 
 Reuse compatible Dense components only after checking norm, RoPE, attention, GEMM, MLP, head/logprob and collective contracts. Inspect ordinary versus offset norm scale conventions explicitly; Hybrid and Dense implementations are not interchangeable by name.
 
+## Bind actual module and converter layouts
+
+Inspect the loaded object tree before selecting adapter symbols. A vLLM build may expose a `MoERunner` that owns `routed_experts`, while Megatron may store sequential experts under `local_experts`; neither layout can be inferred from an older fused-MoE class name. Map both layouts to canonical global expert IDs and verify every gate/up/down tensor after conversion and after each actual weight reload. Loader warning lists alone cannot establish whether expert values were loaded; compare the actual parameter bytes.
+
+Derive Q/K/V widths from head count and head dimension separately from hidden size. In the inspected 2048-hidden, 32-query/4-KV-head, head-dimension-128 geometry, Q width is 4096 and each K/V width is 512. A dense-model split copied from another configuration can silently corrupt the mapping.
+
 ## Implement and observe MoE semantics
 
 | Boundary | Required work |
@@ -26,6 +32,10 @@ Record dense/expert TP, EP, DP and PP groups independently. These groups can ove
 ## Routing evidence and failure isolation
 
 At C3/C5/C8/C9 independently capture router logits, selected expert IDs/weights, dispatch/unpermute mapping, expert identity and combine order for every required token/layer/rank. Predeclare prompt and decode coverage, not only scored response tokens. Bind the route to the same execution/weights/input as its output capture.
+
+Prefix-cache hits can omit prompt computation for a later request even when its response logprobs match. Trace the actual cache-construction execution, version, logical aliases and state provenance if those cached prompt routes count toward coverage. Otherwise add independent fresh-prefix evidence, or choose training prefix caching off at C0 when it is unspecified, while retaining every required cache-enabled inference case. Never fill a missing prompt boundary with copied training routes or count an unobserved boundary as equal.
+
+For backward coverage, bind each expert to the actual selected token rows and its upstream output cotangent. Distinguish an unvisited expert, a visited expert with zero upstream gradient, and an active expert whose required gradient is missing. Preserve and account for zero/absent contributions; a blanket requirement that every original expert have a nonzero gradient in every microbatch is invalid for conditional MoE execution.
 
 If the contract forbids token dropping, verify actual counts/capacity behavior rather than trusting a policy name. If dropping is intentionally part of the model, define and compare its discrete semantics explicitly. Retain both independent old-logprob and grad-enabled actor comparisons. Replaying rollout routes into training is useful diagnosis but cannot pass independent routing.
 
