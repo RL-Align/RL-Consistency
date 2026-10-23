@@ -1,6 +1,6 @@
 # Qwen3-30B-A3B MoE development guide
 
-Bind the actual `Qwen3-30B-A3B` revision/config/weights and loaded `qwen3_moe` implementations. Verify expert count, top-k, expert width, normalization, auxiliary objective and quantization; do not substitute a different variant or assume the framework's example defaults match the intended contract. This guide provides development requirements, not full-model acceptance.
+Bind the actual `Qwen3-30B-A3B` revision/config/weights and loaded `qwen3_moe` implementations. Verify expert count, top-k, expert width, normalization, auxiliary objective and quantization; do not substitute a different variant or assume the framework's example defaults match the intended contract. The requirements below guide new implementations. A completed full-model run is recorded in the measured profile below.
 
 ## Proxy and common work
 
@@ -46,3 +46,21 @@ After effective updates, verify synchronized router/expert weights, same-version
 ## Published evidence receipts
 
 See the [measured environment and original receipt table](evidence/rocm-20261023.md#qwen3-30b-a3b) for the dated acceptance status, raw comparison excerpts, exact source bindings, artifact paths and SHA-256 digests. Complete acceptance and in-progress measurements are explicitly distinguished.
+
+## Measured ROCm run — 2026-10-23 to 2026-10-24
+
+The full 48-layer Qwen3-30B-A3B implementation completed bitwise training–inference, effective-update and checkpoint-resume verification in the measured MI300X ROCm environment. The [published environment and evidence tables](evidence/rocm-20261023.md#qwen3-30b-a3b) contain original receipts and artifact SHA-256 digests.
+
+| Measured item | Result |
+|---|---|
+| Post-training and rollout | Native vime/Megatron GRPO/PPO and independent vLLM rollout; exact source bases and task patches are recorded in the evidence page |
+| Model | Official revision `ad44e777bcd18fa416d9da3bd8f70d33ebb85d39`; 48 original layers, 128 experts/top-8, 30,532,122,624 parameters; all 18,867 source tensors verified |
+| Environment | Two AMD MI300X VF/gfx942 devices; PyTorch2.12.0/ROCm7.14; TP/CP/PP/DP/EP1; eager legacy runner |
+| Precision | BF16 model/activations/paged KV/main-gradient buffers; CPU FP32 AdamW masters/moments; common arithmetic, independent routes and ordered combine |
+| Full inference matrix | Batch1/2, 8/32-token prompts plus16 responses; repeat/single/permutation, fresh teacher prefixes, cache off/on and chunks64/16 pass |
+| Training–inference equality | Each of theta0/theta1/theta2: rollout-old and rollout-grad-enabled-actor each pass32 positions and3,360 logical MoE layer-rows x9 fields |
+| Actual updates | Every element of all three original updates and restored next update passes the independent FP64 Adam reference; real backward/accumulation/norm/clipping and loss references pass |
+| Checkpoint and resume | Native398.245GiB checkpoint; uninterrupted `vime-chain.0j028Z` vs restored `vime-chain.8cpTEe` match raw scores, complete optimizer/deployment states, real gradients, RNG/scheduler and next actual update |
+| Final runtime result | Both normal exits0; resume and MoE resume `all_equal=true`; final runtime flag0 at2026-10-24 00:09:32 Asia/Singapore |
+
+Scope is limited to the recorded modified providers and measured matrix. Training uses microbatch1/globalbatch2, two20-token chat prompts plus16 responses and THD padding128, with prefix caching off. Independent accuracy uses frozen tolerances separately from original-byte equality. Other hardware, frameworks, arbitrary contexts, multi-rank execution, quantization, graphs and the v2 runner remain unmeasured. Performance was not evaluated. Final release-bundle bookkeeping is separate from the completed runtime receipts.
