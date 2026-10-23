@@ -44,7 +44,7 @@ Use the [correctness-first implementation guide](skills/train-inference-consiste
 
 | Model | Architecture-specific guidance | Full-model bitwise acceptance recorded by this skill project |
 |---|---|---|
-| [Qwen3-8B](skills/train-inference-consistency/models/qwen3-8b.md) | Dense attention, GEMM/norm/RoPE/logprob and distributed reductions | Pending; reuse prior results only with their exact scope and evidence |
+| [Qwen3-8B](skills/train-inference-consistency/models/qwen3-8b.md) | Dense attention, GEMM/norm/RoPE/logprob and distributed reductions | Verified in one scoped MI300X ROCm/vime/Megatron/vLLM run (2026-10-23), including full updates and exact resume; see the model guide for evidence and exclusions |
 | [Qwen3.8-27B](skills/train-inference-consistency/models/qwen38-27b.md) | Hybrid text path, convolution/recurrent state and attention transitions | Pending |
 | [Qwen3-30B-A3B](skills/train-inference-consistency/models/qwen3-30b-a3b.md) | Independent routing, dispatch, experts and ordered combine | Pending |
 | Other models | [Generic extension procedure](skills/train-inference-consistency/references/model-extension.md) | Determine from actual implementation and validation |
