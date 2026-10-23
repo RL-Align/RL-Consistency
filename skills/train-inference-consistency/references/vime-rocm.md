@@ -1,32 +1,33 @@
-# 在 AMD ROCm 上应用 skill：vime / Megatron / vLLM
+# Apply the skill on AMD ROCm: vime / Megatron / vLLM
 
-当目标是 AMD GPU、vime 训练任务和独立于 RL-Kernel 的训推一致性时，使用本操作说明。先读 [SKILL.md](../SKILL.md)，保留默认 `consistency-only` 模式。本文提供环境准备与 agent 任务入口；安装成功、原生训练成功均不等于 bitwise 验收通过。
+Use this procedure for AMD GPUs, vime training and training–inference consistency independent of RL-Kernel. Read [SKILL.md](../SKILL.md) first and retain the default `consistency-only` mode. This document provides environment preparation and an agent task entrypoint; successful installation or ordinary training does not establish bitwise acceptance.
 
-目录：
+Contents:
 
-- [职责与路径](#职责与路径)
-- [在宿主机创建容器](#在宿主机创建容器)
-- [在容器中准备代码与环境记录](#在容器中准备代码与环境记录)
-- [先排除工作目录挂载遮蔽镜像源码](#先排除工作目录挂载遮蔽镜像源码)
-- [由 agent 整理可修改的运行环境](#由-agent-整理可修改的运行环境)
-- [交给 agent 的任务](#交给-agent-的任务)
-- [运行与交付](#运行与交付)
+- [Responsibilities and paths](#responsibilities-and-paths)
+- [Create the container on the host](#create-the-container-on-the-host)
+- [Prepare sources and environment records inside the container](#prepare-sources-and-environment-records-inside-the-container)
+- [Check whether workspace mounts hide image sources](#check-whether-workspace-mounts-hide-image-sources)
+- [Verify actual entrypoints, not only imports](#verify-actual-entrypoints-not-only-imports)
+- [Have the agent prepare an editable runtime](#have-the-agent-prepare-an-editable-runtime)
+- [Task to give the agent](#task-to-give-the-agent)
+- [Execution and delivery](#execution-and-delivery)
 
-## 职责与路径
+## Responsibilities and paths
 
-| 项目 | 本次用途 | 代码改在哪里 |
+| Project | Purpose in this task | Where to change code |
 |---|---|---|
-| RL-Consistency | C0–C10 的 Markdown 操作指南、数值契约、验收规则 | 此仓库保持 Markdown；不安装 Python 包 |
-| vime | 组织采样、训练、权重同步，接入独立采集与验收 | `/workspace/vime` |
-| Megatron-LM | 真实 old-logprob 重算与带梯度 actor 的训练计算 | agent 准备的独立源码工作区 |
-| vLLM | 真实 rollout、prefill/decode、KV cache 与输出采集 | agent 准备的独立源码工作区 |
-| 公共算术实现 | 固定计算顺序的 GEMM、attention、norm、logprob、MoE 等 | 上述目标项目中的可版本化模块；三条路径分别执行 |
+| RL-Consistency | Markdown C0–C10 procedure, numerical contracts and acceptance rules | Keep this repository Markdown-only; do not install a Python package |
+| vime | Organize sampling, training and weight synchronization; integrate independent capture and acceptance | `/workspace/vime` |
+| Megatron-LM | Actual training computation for old-logprob recomputation and the grad-enabled actor | A separate source workspace prepared by the agent |
+| vLLM | Actual rollout, prefill/decode, KV cache and output capture | A separate source workspace prepared by the agent |
+| Common arithmetic | Fixed-order GEMM, attention, norm, logprob, MoE and related operations | Versioned modules in the target projects above; independently executed in all three paths |
 
-先复用现有 `rl-kernel:rocm-dev` 镜像提供的 ROCm 软件栈，在**新容器**里检查、移除 RL-Kernel 依赖。镜像名称不决定运行时依赖；卸载一个包也不能证明框架补丁和 worker 已脱离该依赖。若无法复原可靠的独立软件栈，改用 vime 的 ROCm 镜像或构建配方。
+First reuse the ROCm software stack in an existing `rl-kernel:rocm-dev` image and inspect/remove RL-Kernel dependencies in a **new container**. The image name does not determine runtime dependencies; uninstalling one package does not prove framework patches and workers are independent. If a reliable independent stack cannot be recovered, use the vime ROCm image or build recipe.
 
-## 在宿主机创建容器
+## Create the container on the host
 
-下面是单机、单容器的起点。先确认分配给本任务的 GPU 及可用显存。参数 `4,5` 只是示例；不要据此占用这两张卡，也不要假设两张卡一定足够容纳完整 MoE 训练。
+The following is a starting point for one host and one container. Confirm the GPUs allocated to this task and their available VRAM first. `4,5` is only an example: do not claim those devices from this example or assume two devices can hold full MoE training.
 
 ```bash
 mkdir -p rl-consistency-ct
@@ -73,20 +74,20 @@ docker run -itd \
   "$CONSISTENCY_IMAGE_ID"
 BASH
 
-# 将 4,5 改为已经分配给本任务的 GPU。
+# Replace 4,5 with the GPUs already allocated to this task.
 bash docker.sh 4,5
 docker exec -it rl-consistency-ct bash
 ```
 
-使用独立网络、IPC 和默认私有 PID 空间，让本容器的 Ray 端口、共享内存与进程管理独立于旧任务。`64g` 是可按宿主机内存调整的共享内存上限，不是 GPU 显存。跨容器或多节点任务需要另行配置网络；本配方不声称覆盖该范围。保留原有 ROCm 必需环境变量，先检查再调整。
+Use separate networking, IPC and the default private PID namespace so that Ray ports, shared memory and process management remain independent of older tasks. `64g` is a shared-memory limit adjustable to host RAM, not GPU VRAM. Cross-container or multi-node tasks require separate network configuration; this recipe does not claim that scope. Inspect inherited ROCm environment requirements before changing them.
 
-原模型目录只读挂载到 `/app/model`；新下载、转换权重、源码和运行结果写入 `/workspace`，随宿主机工作目录保留。GPU 可见性变量是软件选择配置，并非硬件隔离；后续须在 Ray/训练/推理 worker 中核对实际设备映射。不要添加 `--pid=host`，不要清理旧容器或宿主机进程。重入现有容器用 `docker exec`；脚本不会自动删除同名容器。
+Mount original models read-only at `/app/model`. Write new downloads, converted weights, sources and results under `/workspace`, retained in the host workspace. GPU visibility variables select devices in software; they are not hardware isolation. Verify actual device mappings in Ray, training and inference workers. Do not add `--pid=host` or clean up old containers or host processes. Reenter an existing container with `docker exec`; this script does not automatically delete a container with the same name.
 
-检查真实 worker 的可见设备列表以及实际 UUID/PCI 映射。某些 ROCm HIP-IPC 兼容逻辑会把 engine 自身设备排在前面，再添加其他设备；附加项必须来自继承的已分配列表，不能把 `range(num_gpus_per_node)` 当作物理 GPU ID。例如仅分配非零或不连续设备时，节点数量并不表示可以暴露编号从 0 开始的设备。对分配外的 base ID 或设备数不足应明确失败，并在新 worker 中复核；只看逻辑 `cuda:0` 无法证明使用了哪张物理卡。
+Check each real worker's visible-device list and UUID/PCI mapping. Some ROCm HIP-IPC compatibility code places the engine's own device first and appends other devices. Appended IDs must come from the inherited allocated list, not `range(num_gpus_per_node)` interpreted as physical GPU IDs. With nonzero or noncontiguous allocations, a node's device count does not authorize exposing devices starting at zero. Reject a base ID outside the allocation or insufficient allocated devices, then verify fresh workers. Logical `cuda:0` alone does not identify the physical card.
 
-## 在容器中准备代码与环境记录
+## Prepare sources and environment records inside the container
 
-只在新建容器内执行。克隆的 vime 是待核对的源码；先不要对未知旧镜像直接升级依赖。
+Run this only inside the newly created container. A cloned vime checkout is a source candidate to inspect; do not immediately upgrade dependencies in an unknown older image.
 
 ```bash
 cd /workspace
@@ -127,20 +128,15 @@ for name in ("vime", "vllm", "megatron.core", "ray", "transformers"):
 PY
 ```
 
-这是环境探测，不是 C3/C5 验收。框架出现 `IMPORT_FAILED` 时，先记录并修复环境，不能直接启动完整训练。PyTorch 在 ROCm 上仍使用 `torch.cuda` API。探测到的 `gcnArchName` 决定需要编译时的架构；不能因为某个脚本面向其他 AMD 卡，就把实际 `gfx942` 改成那个架构。
+This is an environment probe, not C3/C5 acceptance. If a framework reports `IMPORT_FAILED`, record and repair the environment before starting full training. PyTorch on ROCm still uses the `torch.cuda` API. The observed `gcnArchName` determines the architecture needed for compilation; do not replace an actual `gfx942` target merely because another script targets a different AMD device.
 
-现在可以让 agent 进入该容器，以 `/workspace` 为工作目录，读取后面的任务。agent 安装在宿主机时，也可通过 `docker exec rl-consistency-ct ...` 执行容器内命令；最终验收必须发生在记录的容器与设备上。
+The agent can now enter the container, use `/workspace` as its working directory and read the task below. An agent installed on the host can use `docker exec rl-consistency-ct ...` for container commands. Final acceptance must run in the recorded container on the recorded devices.
 
-## 先排除工作目录挂载遮蔽镜像源码
+## Check whether workspace mounts hide image sources
 
-容器中的 `import vllm` 失败不一定表示镜像没有安装 vLLM。
-上面的 `-v "$CONSISTENCY_ROOT:/workspace"` 会遮蔽镜像原有的整个
-`/workspace`；镜像中的 editable 安装或 `easy-install.pth` 可能仍指向
-被遮蔽的源码。先检查 `.pth`、`.egg-link` 和 editable finder 的目标是否存在，
-再决定是否安装或编译。仅从 `pip list` 或 `find_spec` 不能区分缺包与失效绑定。
+A failing `import vllm` inside the container does not necessarily mean the image lacks vLLM. The `-v "$CONSISTENCY_ROOT:/workspace"` mount above hides the image's entire original `/workspace`. Editable installs or `easy-install.pth` files may still point to the hidden source tree. Inspect `.pth`, `.egg-link` and editable-finder targets before deciding to install or compile. `pip list` or `find_spec` alone cannot distinguish a missing package from a broken binding.
 
-在宿主机记录目标容器的精确 image ID，并用不挂 GPU、不挂工作目录、
-不联网的临时容器查看原始目录。例如，以下检查不运行模型：
+Record the target container's exact image ID on the host. Inspect original paths with a temporary container that has no GPU access, workspace mount or network access. For example, this inspection does not run a model:
 
 ```bash
 CONSISTENCY_IMAGE_ID="$(docker inspect --format '{{.Image}}' rl-consistency-ct)"
@@ -148,135 +144,113 @@ docker run --rm --network none --entrypoint /bin/bash "$CONSISTENCY_IMAGE_ID" \
   -c 'ls -la /workspace'
 ```
 
-若已确认所需源码就在镜像中，可创建一个**本任务独有的停止状态容器**，
-用 `docker cp` 把确认过的源码目录及编译扩展恢复到独立工作区。目标目录
-必须尚不存在，避免覆盖已有修改。保留 Git 提交、原有补丁和扩展文件；
-核对当前 vime 所需 API 后，在目标运行容器中重新验证加载路径。
-复制源码不等于已经证明 API/ABI 兼容。复制后的所有者可能与容器运行用户不同；
-只对已确认属于本任务的路径处理 Git ownership 检查，不能全局关闭检查。
-完成后仅删除本任务创建的辅助容器。
+If the required sources are confirmed to exist in the image, create a **stopped helper container unique to this task** and use `docker cp` to recover the verified source directory and compiled extensions into a separate workspace. The destination must not already exist, preventing overwrites of prior changes. Preserve Git commits, original patches and extensions. Check the APIs required by the current vime revision and verify loading inside the target runtime container.
 
-从包安装目录恢复 Megatron 源码时，记录原始 dist-info 和逐文件内容身份。
-上游 SHA 不可取得时明确记为未知，不把版本号当作提交。确认
-`megatron.core` **和** `megatron.training` 都从独立目录加载；
-只追加一个 namespace 路径可能仍优先选中旧的 site-packages 实现。
+Copying sources does not establish API/ABI compatibility. Recovered files may have a different owner from the runtime user. Resolve Git ownership checks only for verified task-owned paths; do not disable checks globally. Afterwards, remove only the helper container created by this task.
 
-环境探测要以新进程或脚本文件方式运行，而不只在仓库根目录执行
-`python -c`：后者的当前目录可能让未安装的 vime 看似可以导入。
-按下节的 editable 安装绑定源码后，重跑独立探测，并在真实 worker 中再次核对。
-缺失 `vllm_router` 等纯上层依赖时，先按当前 vime 的 requirements 确认包名，
-使用明确版本且不替换现有 ROCm 包的安装方式；保留原失败记录与安装日志。
+When recovering Megatron sources from a package installation, retain original dist-info and per-file content identities. If an upstream SHA is unavailable, record it as unknown; a version number is not a commit. Confirm that both `megatron.core` and `megatron.training` load from the independent directory. Appending a namespace path alone may still prefer the old site-packages implementation.
 
-## 验证实际入口，而不只验证 import
+Run probes in fresh processes or script files, not only with `python -c` at the repository root: the current directory can make an uninstalled vime checkout appear importable. After binding sources through the editable installation below, rerun the independent probe and verify real workers again. For missing upper-layer dependencies such as `vllm_router`, first confirm the package name in the selected vime requirements, then install an explicit version without replacing existing ROCm packages. Preserve original failures and installation logs.
 
-已确认可导入的 Megatron wheel 仍可能缺少模型构造时才加载的子模块
-（例如 `megatron.post_training`）。用选定 vime 的实际转换/模型构造入口验证；
-失败后先查该 vime 提交的 ROCm 配方所固定的完整源码版本。保留原 wheel
-快照与失败证据，再绑定完整源码。逐项审阅 AMD 补丁：设备修复与
-允许缺失权重、partial-load 等语义放宽必须分开；不能为启动成功静默放宽权重完整性。
-选择 unfused attention 时，也要核对继承的 Transformer Engine 环境开关，
-避免命令行与 `NVTE_FUSED_ATTN` 等设置冲突。
+## Verify actual entrypoints, not only imports
 
-vLLM 的 frontend CLI 模块位置、健康检查端点和 sampler/runner 类型会随提交变化。
-按实际源码做功能探测，并同时覆盖参数发现与真正的服务器启动路径。
-若旧的生成健康检查端点明确返回 404，可在已确认接口上做真实的一 token
-生成探测；不能把普通存活检查当作生成就绪，也不能把 503/生成失败吞成成功。
-捕获 hook 必须在真实 worker 中确认目标类型与执行次数；切换 legacy/v2 runner
-是范围变化，需要记录，不能将一个 runner 的证据外推给另一个。
-未选用的可选传输后端不应因无条件 import 阻塞默认路径；修复条件导入并测试缺包场景，
-不要据此给整个镜像补装未经核对的依赖。
+An importable Megatron wheel may still lack submodules loaded only during model construction, such as `megatron.post_training`. Test the selected vime conversion/model-construction entrypoint. On failure, inspect the complete source revision pinned by that vime revision's ROCm recipe. Preserve the original wheel snapshot and failure evidence before binding complete sources. Review AMD patches individually: device repairs and semantic changes allowing missing weights or partial loading are separate decisions. Never silently weaken weight completeness to make startup succeed. With unfused attention selected, check inherited Transformer Engine switches so the CLI does not conflict with settings such as `NVTE_FUSED_ATTN`.
 
-检查配置是否真正传到了 worker，而不只查看 driver 命令行：
-vime 的服务器环境构造可能强制覆盖 `VLLM_USE_V2_MODEL_RUNNER`，
-其固定参数字典也可能让显式 `--vllm-logprobs-mode` 被忽略。
-记录 worker 的实际 runner 类型和 sampler 的 `logprobs_mode`，并与声明逐项核对。
-修复时保留项目原有默认值、允许显式选择生效，并测试两种行为。
-不要因为温度恰好为 1 就默默把 processed 与 raw 分数当作同一验收语义；
-先证明处理过程等价，或重新运行实际 raw 分支。不同 runner/评分语义的
-旧证据不得继承新范围的通过状态。
+vLLM frontend CLI locations, health endpoints and sampler/runner types change across revisions. Probe actual source capabilities and cover both argument discovery and real server startup. If an older generation health endpoint explicitly returns 404, use a real one-token generation probe on the verified interface. A liveness response does not prove generation readiness, and 503 or generation failure must not be swallowed as success. Confirm capture target types and execution counts in real workers. Switching legacy/v2 runners changes scope; evidence for one runner does not establish the other. An unused optional transport should not block the default path through an unconditional import. Repair conditional imports and test the missing-package case instead of installing unverified dependencies throughout the image.
 
-## 由 agent 整理可修改的运行环境
+Verify that settings actually reach workers, not only the driver CLI. vime's server environment construction may override `VLLM_USE_V2_MODEL_RUNNER`; a fixed argument dictionary may ignore an explicit `--vllm-logprobs-mode`. Record the actual worker runner type and sampler `logprobs_mode`, then check them against the declaration. Preserve project defaults while enabling explicit choices, and test both behaviors. Temperature1 alone does not authorize treating processed and raw scores as the same acceptance semantics. Prove equivalent processing or rerun the actual raw branch. Old evidence for another runner or scoring semantics cannot inherit a pass in the new scope.
 
-1. **冻结实际环境。** 检查镜像原有 vime、Megatron、vLLM 的加载路径、源码提交、未提交修改、已编译扩展和必要 AMD 补丁。记录 ROCm/PyTorch/Transformer Engine/RCCL/Ray 版本、设备映射及相关环境变量。只记录与任务有关的配置，避免把凭据混入日志。检查模型快照、配置、tokenizer 和权重分片是否齐全，解析缓存符号链接，记录内容身份。
-2. **对齐源码与依赖。** 优先以镜像中能正常运行的软件栈及其对应源码为起点。让 `/workspace/vime` 使用相匹配的提交，保留有用的 AMD 补丁及其来源；不要将镜像中的未提交补丁直接丢弃。Megatron/vLLM 需要改动时，准备独立工作区并按该版本的 ROCm 开发方式重建或绑定。不要拿最新 vime 源码配未知旧 vLLM API 后宣称环境已就绪。
-3. **清除 RL-Kernel 接入。** 在新容器中卸载 `rl-kernel`；检查实际源码、启动入口、环境注入、`.pth`/`sitecustomize`、import hook、共享库与框架 monkey patch。移除或替换依赖它的 dispatch。保留原有必需的 ROCm/Torch Memory Saver 等修复，不能笼统清空 `LD_PRELOAD` 或 `PYTHONPATH`。在新启动的真实 worker 中核验已加载模块、算子提供方及源码路径；旧 worker 不可复用为卸载后的证据。
-4. **绑定独立工作区。** 以下命令只在版本与构建依赖核对后执行。`--no-deps` 避免自动换掉 ROCm 依赖，但它不会自动修复不兼容版本。绑定后重新检查真实 worker 的导入路径；镜像中的 `.pth`、Ray `runtime_env` 或硬编码 `/root/Megatron-LM` 可能仍指向旧源码。
+## Have the agent prepare an editable runtime
+
+1. **Freeze the actual environment.** Inspect original vime/Megatron/vLLM load paths, source commits, uncommitted edits, compiled extensions and necessary AMD patches. Record ROCm/PyTorch/Transformer Engine/RCCL/Ray versions, device mappings and relevant environment variables. Log task-related settings without credentials. Check model snapshots, configuration, tokenizer and weight shards, resolve cache symlinks and record content identities.
+2. **Align sources and dependencies.** Prefer the image's working stack and corresponding sources as the starting point. Use a matching vime revision and retain useful AMD patches and provenance; do not discard uncommitted image patches. Prepare independent Megatron/vLLM workspaces when modifications are needed, then rebuild or bind them using that revision's ROCm development procedure. Pairing latest vime with unknown older vLLM APIs does not establish readiness.
+3. **Remove RL-Kernel integration.** Uninstall `rl-kernel` in the new container. Inspect actual sources, launch entrypoints, environment injection, `.pth`/`sitecustomize`, import hooks, shared libraries and framework monkey patches. Remove or replace dispatch that depends on it. Preserve necessary ROCm/Torch Memory Saver repairs; do not indiscriminately clear `LD_PRELOAD` or `PYTHONPATH`. Verify loaded modules, numerical providers and source paths in newly started real workers. Old workers cannot serve as post-uninstallation evidence.
+4. **Bind independent workspaces.** Run the following only after checking versions and build dependencies. `--no-deps` prevents automatic replacement of ROCm dependencies; it does not repair incompatible versions. Recheck real worker imports after binding. Image `.pth` files, Ray `runtime_env` or hard-coded `/root/Megatron-LM` paths may still select older sources.
 
    ```bash
    python3 -m pip uninstall -y rl-kernel
    python3 -m pip install --no-deps --no-build-isolation -e /workspace/vime
    ```
 
-5. **准备输入与任务入口。** 优先使用 `/app/model` 中已有的 Qwen3-8B/Qwen3-30B-A3B 原始权重；不要默认它们是普通目录或需要重新下载。按已选 vime 提交的转换工具建立 Megatron 权重，输出到 `/workspace/artifacts` 的独立目录，验证转换后的逻辑张量映射和数值身份。数据缺失时按该提交的训练示例准备实际目标函数所需数据；记录 tokenizer、chat template、响应 mask 和 loss 配置。新建启动脚本，保留分配的 GPU、唯一输出目录和本任务拥有的进程；不要直接执行上游示例中的通用 `pkill` 或清空旧 checkpoint。
-6. **检查最小可运行链路。** 先确认模型加载、一次 rollout、训练 forward/backward、一次权重同步可运行。普通运行成功只解除环境阻塞；它不是原生性能基线，也不替代任何 bitwise/精度关卡。随后按 C0–C10 实现与验收。
+5. **Prepare inputs and launch entrypoints.** Prefer existing original Qwen3-8B/Qwen3-30B-A3B weights under `/app/model`; do not assume they are ordinary directories or require downloading again. Use the selected vime revision's converter to create Megatron weights in a separate directory under `/workspace/artifacts`. Verify logical tensor mapping and numerical identity. If data is missing, follow that revision's training examples for the actual objective. Record tokenizer, chat template, response masks and loss settings. Create task launch scripts with allocated GPUs, unique output directories and task-owned processes. Do not execute generic upstream `pkill` commands or erase old checkpoints.
+6. **Check the minimum runnable chain.** Confirm model loading, one rollout, training forward/backward and one weight synchronization. Ordinary success only resolves environment blockers; it is not a native performance baseline and does not replace bitwise or accuracy gates. Then implement and accept C0–C10.
 
-如果镜像缺少兼容的软件栈或无法剥离已有集成，读取所选 vime 提交中的 [AMD 指南](https://docs.vllm.ai/projects/vime/en/latest/platform_support/amd_tutorial.html)、[ROCm Dockerfile](https://github.com/vllm-project/vime/blob/main/docker/Dockerfile.rocm) 或 [ROCm 7.14 Dockerfile](https://github.com/vllm-project/vime/blob/main/docker/Dockerfile.rocm7.14)，选择与硬件/宿主驱动兼容的配方。在新镜像中准备环境，记录配方提交、实际 base image ID、依赖提交和补丁；不要把浮动 `latest` 当作可复现标识。构建/导入成功仍不是一致性证据。
+If the image lacks a compatible stack or existing integration cannot be removed, read the selected vime revision's [AMD guide](https://docs.vllm.ai/projects/vime/en/latest/platform_support/amd_tutorial.html), [ROCm Dockerfile](https://github.com/vllm-project/vime/blob/main/docker/Dockerfile.rocm) or [ROCm 7.14 Dockerfile](https://github.com/vllm-project/vime/blob/main/docker/Dockerfile.rocm7.14). Select a recipe compatible with the hardware and host driver. Record its commit, actual base image ID, dependency revisions and patches when preparing a new image; a floating `latest` is not a reproducible identity. Successful building/importing still does not establish consistency.
 
-## 交给 agent 的任务
+## Task to give the agent
 
-将下面任务原样交给能访问该容器和 `/workspace` 的 agent：
+Give the following task to an agent with access to this container and `/workspace`:
 
 ```text
-读取 /workspace/RL-Consistency/skills/train-inference-consistency/SKILL.md，
-以及 references/vime-rocm.md、references/correctness-first.md 和模型指南。
+Read /workspace/RL-Consistency/skills/train-inference-consistency/SKILL.md,
+references/vime-rocm.md, references/correctness-first.md and the model guides.
 
-目标：在本 AMD ROCm 容器内，以 vime 为上层框架、Megatron 为训练路径、
-vLLM 为 rollout 路径，先实现并验证 Qwen3-8B，再实现并验证 Qwen3-30B-A3B
-的训推 bitwise 一致性。不考虑性能，不依赖 RL-Kernel。
+Goal: in this AMD ROCm container, use vime as the upper framework, Megatron
+as the training path and vLLM as the rollout path. Implement and verify
+training–inference bitwise consistency for Qwen3-8B first, then Qwen3-30B-A3B.
+Do not optimize performance or depend on RL-Kernel.
 
-先检查实际环境、模型和分配的 GPU，整理匹配的源码/依赖与独立工作区。
-源模型在 /app/model；缓存、转换权重、运行结果写入 /workspace。
-使用 /workspace/vime，并按需要修改独立的 Megatron/vLLM 源码工作区；
-实现和测试写入目标项目，RL-Consistency 保持 Markdown。
+Inspect the actual environment, models and allocated GPUs first. Prepare
+matching sources/dependencies and separate editable workspaces. Original
+models are under /app/model; write caches, conversions and results under
+/workspace. Use /workspace/vime and modify independent Megatron/vLLM source
+workspaces as needed. Put implementation/tests in target projects and keep
+RL-Consistency Markdown-only.
 
-不要只给计划：完成已授权的环境整理、代码修改、测试、诊断和复跑。
-缺少硬件、权重或必要资源时精确记录 blocker，继续不依赖它的工作。
-不要求性能优化，C1/C4 为 not-required。允许逐 token 计算、固定顺序
-规约、显式 attention、顺序专家计算及公共算子代码。
-保留三个实际执行入口，三条路径必须独立重新计算。
+Execute authorized environment repairs, code changes, tests, diagnosis and
+reruns; do not stop at a plan. Record exact missing hardware, weights or
+resource blockers and continue work that does not depend on them.
+C1/C4 are not-required. Per-token computation, fixed-order reductions,
+explicit attention, sequential experts and common operator code are allowed.
+Retain three real entrypoints and independently recompute in all three paths.
 
-在运行前声明并记录模型/权重版本、精度、拓扑、外部 batch/序列长度范围、
-prefill/decode、KV cache 和目标函数。保留真实 vime 训练入口与带梯度 actor；
-不要用单独 HF/CPU 对比替代。需要缓存的案例必须实测缓存路径。
-初始开发可以使用代表性减层模型，最终必须验证完整原始模型。
+Before running, declare model/weight versions, precision, topology, external
+batch/sequence ranges, prefill/decode, KV cache and the objective. Keep real
+vime training and the grad-enabled actor; standalone HF/CPU comparisons do
+not substitute. Test actual cache behavior wherever caching is required.
+A representative reduced-layer model is allowed during development;
+final acceptance requires the full original model.
 
-按 C0→C2→C3→C5→C6→C7→C8→C9→C10 推进：
-独立 rollout、old-logprob 重算、actor forward；保留原始字节和中间边界；
-首个不一致处做同输入 replay，修复实际提供方后重跑。
-验证独立数学精度、真实梯度、两次有效更新，在 θ0/θ1/θ2 分别做同版本比较；
-完成完整模型和 checkpoint 恢复后的首个 forward 与下一次更新。
-MoE 额外独立比较 router logits、expert IDs/weights、dispatch 和 combine；
-不得重放 rollout 的路由决定来伪造独立一致性。
+Follow C0→C2→C3→C5→C6→C7→C8→C9→C10. Independently execute rollout,
+old-logprob recomputation and actor forward; retain original bytes and
+intermediate boundaries. Replay the first differing actual provider with
+the same input, repair it and rerun affected checks. Validate independent
+mathematical accuracy, real gradients and two effective updates. Compare
+same-version paths at theta0/theta1/theta2. Complete full-model execution and
+the first restored forward plus next actual update after checkpoint loading.
+For MoE, independently compare router logits, expert IDs/weights, dispatch
+and combine. Never replay rollout routing decisions to fake independence.
 
-把实际可执行的安装、启动、测试、复现命令及版本/证据保存到任务记录，
-逐关更新 ledger/handoff。最终给两个模型分别列验收表；
-未执行、不完整或失败的案例不能标为通过。不要以生成文本相同、KL 接近零、
-allclose、统一随机种子或一次成功训练代替原始字节验收。
+Retain executable installation, launch, test and reproduction commands with
+version/evidence identities. Update ledger/handoff after each gate. Deliver
+separate acceptance tables for both models. Never mark unexecuted, incomplete
+or failing cases as pass. Matching generated text, near-zero KL, allclose,
+a shared seed or one successful training run does not replace raw-byte checks.
 ```
 
-针对已核对的 vime 源码，重点检查以下位置；不同提交以实际调用关系为准：
+For the inspected vime revision, pay particular attention to these locations. Resolve actual call relationships again for other revisions:
 
-| 位置 | 必须确认的行为 |
+| Location | Behavior that must be verified |
 |---|---|
-| `vime/backends/megatron_utils/actor.py` | 是否真正单独执行 old-logprob 重算；检查 `can_reuse_log_probs_in_loss` 等复用分支 |
-| `vime/backends/megatron_utils/loss.py` | 是否将 rollout scores 或当前 actor 的 `detach()` 当作 old scores；验收采集必须独立执行 |
-| `vime/rollout/vllm_rollout.py` | 在真实 rollout worker 记录输入、权重版本和未改写的数值输出 |
-| `vime/backends/megatron_utils/update_weight/` | 训练到推理的张量映射、同步完成证据、版本与缓存失效 |
-| 实际 Megatron/vLLM 模型及算子源码 | 公共数值提供方的绑定、fallback 拒绝和梯度完整性 |
+| `vime/backends/megatron_utils/actor.py` | A genuinely separate old-logprob forward; inspect `can_reuse_log_probs_in_loss` and similar reuse branches |
+| `vime/backends/megatron_utils/loss.py` | Whether rollout scores or the current actor's `detach()` are used as old scores; acceptance capture must execute independently |
+| `vime/rollout/vllm_rollout.py` | Actual rollout-worker input, weight version and unmodified numerical output capture |
+| `vime/backends/megatron_utils/update_weight/` | Training-to-inference tensor mapping, synchronization completion, versions and cache invalidation |
+| Actual Megatron/vLLM model and operator sources | Common numerical-provider binding, unsupported-fallback rejection and gradient completeness |
 
-仅设置 `use_rollout_logprobs=False` 不一定触发独立 old forward：某些路径会复用当前 actor scores。对验收用例显式执行、绑定并采集独立 old 分支；保留真实 RL 目标函数的 old-policy 冻结语义。θ1/θ2 使用新同步用例比较同版本三条路径，不能把旧轨迹的 old-policy 分数改成新策略分数。先核对当前提交提供的配置与接口，不要虚构“一键一致性”开关。
+Setting `use_rollout_logprobs=False` alone may not trigger an independent old forward: some paths reuse current actor scores. Explicitly execute, bind and capture the independent old branch for acceptance cases while preserving frozen old-policy semantics in the real RL objective. Use newly synchronized cases at theta1/theta2 for same-version comparisons; do not rewrite old trajectories' old-policy scores with a newer policy. Inspect configuration and interfaces in the current revision instead of inventing a one-switch consistency option.
 
-## 运行与交付
+## Execution and delivery
 
-按“环境就绪 → Qwen3-8B 代表性层 → Qwen3-8B 完整模型 → Qwen3-30B-A3B 代表性层 → Qwen3-30B-A3B 完整模型”推进。复用已验证且数值契约兼容的公共实现，但 MoE 的独立路由、专家、combine、梯度和完整模型必须重新验收。内存不足时可以继续代理模型开发；完整模型保持 blocked，不能缩专家数量后冒充原模型通过。
+Proceed through environment readiness → representative Qwen3-8B layers → full Qwen3-8B → representative Qwen3-30B-A3B layers → full Qwen3-30B-A3B. Reuse verified common implementations only when their numerical contracts remain compatible. Independently accept MoE routing, experts, combine, gradients and the full model. If full-model memory is insufficient, continue proxy development and keep the full model blocked; reducing experts cannot establish acceptance of the original model.
 
-要求 agent 在目标工作区交付：源码提交/补丁、可重复安装步骤、实际启动脚本、输入与权重身份、逐关记录、独立捕获的原始证据、首差异诊断及完整模型/恢复测试报告。容器内临时手改的 site-packages 必须转为可重建的源码修改；记录编译扩展与实际加载路径，避免重启后消失。
+Require delivery in the target workspace: source commits/patches, reproducible installation steps, actual launch scripts, input/weight identities, gate records, independent raw captures, first-divergence diagnosis and full-model/resume reports. Convert temporary site-packages edits into reproducible source changes. Record compiled extensions and actual load paths so repairs do not disappear on restart.
 
-| 需要区分的结果 | 可以说明什么 |
+| Distinct result | What it establishes |
 |---|---|
-| 环境探测与原生最小链路成功 | 软件栈能运行；尚未证明 bitwise 一致性 |
-| 代理模型通过 | 相应算子/层路径得到验证；完整模型仍待验证 |
-| 某模型全部必需关卡通过 | 该模型在记录的权重、设备、精度、拓扑和输入范围内完成 consistency-only 验收 |
-| 两个模型通过 | 两个独立验收范围成立；不能外推为所有模型、所有 AMD 卡或所有配置 |
+| Environment probe and minimum native chain succeed | The software stack runs; bitwise consistency remains unproven |
+| Proxy passes | Corresponding operator/layer paths are verified; the full model remains pending |
+| All required gates pass for one model | That model completes consistency-only acceptance for the recorded weights, devices, precision, topology and inputs |
+| Both models pass | Two independent accepted scopes; no extension to every model, AMD device or configuration |
 
-用 [release-report.md](../templates/release-report.md) 分别报告两个模型。C1/C4 为 `not-required`，性能为 `not evaluated`。此指南能为 agent 提供具体实施路线；需要开发多少算子、需要多久，以及能否在当前资源上完成，必须由实际运行确定。
+Use [release-report.md](../templates/release-report.md) separately for both models. C1/C4 are `not-required` and performance is `not evaluated`. This guide supplies an implementation route; the required operator work, completion time and feasibility on current resources must be determined from actual execution.
