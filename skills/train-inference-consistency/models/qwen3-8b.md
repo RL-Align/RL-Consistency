@@ -54,3 +54,7 @@ Evidence receipts under task artifact group `rocm-qwen3-20261023`:
 The target delivery contains `release-qwen3-8b.md`, `README.md`, executable launch/comparison/reference scripts, source base/patch/file-hash archives and all failed attempts. C9 required the documented nativeCPU/Gloo save path and a guarded plain-FP32 optimizer-load repair; see [checkpoint memory and restore requirements](../references/c9-full-model-resume.md#budget-checkpoint-save-and-load-separately). Their controlled prechecks were followed by the actual full restored comparison.
 
 This result does not cover other checkpoints, arbitrary contexts, other hardware/topologies, quantized cache, dropout, graphs/v2runner or MoE. It does not establish reward improvement or performance. Reuse requires the exact modified providers/model identities and a scope compatibility check; the model name alone is insufficient.
+
+## Published evidence receipts
+
+See the [measured environment and original receipt table](evidence/rocm-20261023.md#qwen3-8b) for the dated acceptance status, raw comparison excerpts, exact source bindings, artifact paths and SHA-256 digests. Complete acceptance and in-progress measurements are explicitly distinguished.
