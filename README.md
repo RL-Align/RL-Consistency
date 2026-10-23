@@ -19,13 +19,35 @@ Measured on AMD MI300X with ROCm and BF16 models. Here, absolute consistency mea
 
 These examples demonstrate successful implementations within that scope. Runtime code and task-specific patches are retained in the target projects; this repository distributes Markdown guidance. A new agent must implement or adapt the required code and independently validate its results. The examples do not guarantee that every agent can rebuild the implementations from the guide alone.
 
-## Use the skill
+## Quick start
 
-Copy the complete `skills/train-inference-consistency/` directory into your agent's skill directory, or give the agent its `SKILL.md` path.
+1. **Prepare the project and environment.** Download this repository and make the model checkpoint, post-training source, rollout source and allocated GPUs accessible to the agent. For AMD + vime, follow the [ROCm/vime setup guide](skills/train-inference-consistency/references/vime-rocm.md).
 
-> Use this skill to implement and verify bitwise training–inference consistency for MODEL in TRAINING_REPO and ROLLOUT_REPO on HARDWARE. Preserve independent execution and real gradients, updates and resume. Record evidence and any remaining blockers. Do not optimize performance.
+2. **Give the agent the complete skill.** Copy `skills/train-inference-consistency/` into the agent's skill directory, or provide the absolute path to its `SKILL.md`. Keep all referenced Markdown files and their relative paths together.
 
-The workflow is designed to guide adaptation to other post-training frameworks, including verl or a custom framework. Each additional framework and environment needs its own implementation and measured validation. See the [ROCm/vime setup guide](skills/train-inference-consistency/references/vime-rocm.md) for the measured stack.
+3. **Provide the task below.** Replace the placeholders with actual paths and hardware details. Let the agent inspect the environment, adapt code in the target projects, run the required checks and retain the implementation and evidence.
+
+```text
+Read /absolute/path/RL-Consistency/skills/train-inference-consistency/SKILL.md.
+Follow it to implement and verify bitwise training-inference consistency.
+
+Model: <model name>
+Checkpoint: <absolute path to original model weights>
+Post-training repository: <absolute path>
+Rollout repository: <absolute path>
+Hardware and allocated GPUs: <device model and allowed GPU IDs>
+
+Inspect the actual sources, weights and execution paths first.
+Implement adaptations and executable tests in the target repositories.
+Verify independently executed rollout, old-logprob recomputation and
+grad-enabled actor forward, real gradients, effective updates and full-model resume.
+Retain raw comparison results, exact source/environment identities and a handoff.
+Report the verified scope and any remaining blockers. Do not optimize performance.
+```
+
+For the measured Qwen workflow, develop and validate Qwen3-8B before Qwen3-30B-A3B. The [usage guide](docs/usage.md) describes the detailed workflow.
+
+Other post-training frameworks, including verl or a custom framework, require their own code adaptation and measured validation.
 
 ## Contribute
 
