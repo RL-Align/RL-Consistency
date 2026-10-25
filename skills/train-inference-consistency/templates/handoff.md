@@ -2,6 +2,8 @@
 
 Task/run ID and latest ledger: TODO. Current stage/status: TODO.
 
+Current role and next role/action: TODO. Requested completion boundary and authority to change product code: TODO. Follow the [suite handoff contract](../references/skill-suite.md); a role transition does not create a new run or establish a gate pass.
+
 ## Resume context
 
 - User goal, acceptance mode, requested scope and applicable authorization: TODO.
@@ -23,5 +25,6 @@ State what was implemented and actually executed; separate observed facts from h
 3. Expected observation/criterion and fallback investigation if it fails: TODO.
 4. Blocked resource/decision and independent work still possible: TODO.
 5. Gates/results made stale by recent changes and required reruns: TODO.
+6. For a role transition: exact diagnosis fixture or changed implementation identity, raw evidence to inspect, allowed repair/verification scope, and remaining canonical acceptance: TODO.
 
 Do not assume the next agent has chat history. It must be able to inspect the raw artifacts and resume without guessing missing paths, approvals or success states.

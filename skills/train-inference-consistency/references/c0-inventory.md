@@ -2,6 +2,8 @@
 
 **Entry:** target task and accessible repositories/checkpoint/environment. Read [numerical-contract.md](numerical-contract.md) and [evidence.md](evidence.md).
 
+For an existing framework, first inspect its working launch path and available functional results. Run a bounded functional reproduction when authorized resources permit, retaining any pre-existing failure. This is not C1 performance benchmarking. Reuse compatible loaders, providers, training loops and tests; inventory the complete required path while directing new implementation work to observed gaps. Apply the [suite role boundary](skill-suite.md) when the user requested diagnosis or verification only.
+
 ## Inspect and implement
 
 1. Identify the actual training framework, rollout framework, model classes, loaded kernels/extensions, environment and device groups. Follow the training job from rollout through old-logprob selection/recomputation to the actor loss callsite. Locate flags that bypass recomputation, replay routes or change precision.

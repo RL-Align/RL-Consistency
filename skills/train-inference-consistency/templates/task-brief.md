@@ -5,6 +5,7 @@ Status: not-started. Placeholder text is not evidence.
 | Item | Observed value / artifact / unresolved question |
 |---|---|
 | User goal and authorized work | TODO |
+| Task boundary and active role | End-to-end, diagnosis-only, implementation, or verification-only; record allowed product changes and requested completion scope |
 | Acceptance mode and source | consistency-only by default; record any explicit performance request |
 | Target repository paths, refs and local changes | TODO |
 | Model ID/revision, config, full weight manifest, tokenizer | TODO |
