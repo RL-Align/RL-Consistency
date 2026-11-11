@@ -2,6 +2,27 @@
 
 Use the common C0–C10 stages for the user's actual Qwen3-8B checkpoint, engines and hardware. This guide supplies Dense-specific work; it does not supply a kernel implementation or establish full-model acceptance. Bind the real config/revision and weight manifests before relying on architecture facts.
 
+## Current validation — 2026-11-11
+
+This table is the current task result; dated historical sections below retain their original scope. See the [current evidence](evidence/rocm-20261111.md) and [exact archive/replay instructions](evidence/rocm-20261111-reproduction.md). No RL-Kernel dependency. Performance: not evaluated.
+
+Measured hardware: AMD Instinct MI300X VF (gfx942), physical Devices 4–7. Measured configuration: original revision `b968826d9c46dd6066d109eabc6255188de91218`,36 layers/8,190,735,360 parameters, BF16 model/activations/KV and FP32 gradients/masters/moments, native FP32 Adam. Training/rollout use TP/CP/PP/DP/EP1 on Devices4/5; the layout case uses6/7. Microbatch2/padding128 and microbatch1/padding64, globalbatch2; inference prompts8/20/32 with16 responses, cache off/on and chunks64/16.
+
+| Gate | Status | Actual scope/evidence |
+|---|---|---|
+| C0 | PASS | Exact original36-layer identities, worker/operator inventory and allowed GPUs |
+| C1 | NOT REQUIRED | Performance: not evaluated |
+| C2 | PASS | Original-width source-preserving proxy and actual native chain |
+| C3 | PASS | Full cache/chunk/batch/packing/teacher-prefix matrix;482 pairs/1,952 tokens |
+| C4 | NOT REQUIRED | Performance: not evaluated |
+| C5 | PASS | All three independently computed score pairs:96 valid tokens/pair across theta0/1/2 |
+| C6 | PASS | 873 actual native gradient-hook records; finite gradients and padding coverage |
+| C7 | PASS | Independent common/loss/gradient references and complete restored optimizer-step audit |
+| C8 | PASS | Three actual updates; real model changes and complete deployment identity checks |
+| C9 | PASS | Full checkpoint fresh restore: first forward, gradients, effective next update and complete related state match |
+| C10 | PASS | Actual delivered archive reconstruction, full8B entrypoint32 raw tokens and unsupported-config rejection; English replay instructions |
+
+The declared reconstruction scope uses the pinned installed Python/native ABI and an isolated tree reconstructed from the delivered archive. Other hardware/topologies, arbitrary contexts, quantization, graph/v2-runner modes and performance are not covered. Consistency-only acceptance is complete in the declared scope. C1/C4 are not required; performance is not evaluated. Release proceeds through a PR subject to repository checks; the final document/PR/merge binding is retained in the external release-event.json.
 ## Inspect and map
 
 Inventory embedding/head, decoder layer sequence, Q/K/V and output projections, Q/K normalization, rotary positions, causal attention/KV cache, RMSNorm, gated MLP, residuals and logprob/loss reductions. Confirm actual dimensions, epsilons, activation, positional parameters, tied weights, dtypes and converter transposes from checkpoint and loaded code.
@@ -58,3 +79,25 @@ This result does not cover other checkpoints, arbitrary contexts, other hardware
 ## Published evidence receipts
 
 See the [measured environment and original receipt table](evidence/rocm-20261023.md#qwen3-8b) for the dated acceptance status, raw comparison excerpts, exact source bindings, artifact paths and SHA-256 digests. Complete acceptance and in-progress measurements are explicitly distinguished.
+
+## Current execution — 2026-11-06
+
+The November task uses physical Devices 4–7 only and does not inherit acceptance from the historical run. See the [current gate table](../../../STATUS.md), [execution receipts](evidence/rocm-20261106-resumed.md), [storage finding](evidence/rocm-20261106-storage.md), and [reconstruction evidence](evidence/rocm-20261106-reconstruction.md). Performance: not evaluated.
+
+| Current measured item | Result |
+|---|---|
+| Environment | MI300X VF/gfx942; torch2.12.0+rocm7.14.0a20260608, HIP7.14.60850; vLLM98dff2a8; pinned vime/Megatron plus archived patches |
+| Model / precision | Original36 layers /8,190,735,360 parameters; BF16 model/activations/KV, FP32 main gradients/masters/moments; FP64 score reduction with final FP32 rows |
+| Parallelism | Training TP/PP/CP/DP1 and independent TP1 rollout; physical4/5, with controlled layout test on6/7 |
+| C0/C2/C3/C5/C6/C7/C8/C9 | PASS in the declared measured scope; C1/C4 not-required |
+| Independent byte equality | All3 score pairs at theta0/1/2,96 valid tokens per pair; full inference matrix482 pairs /1,952 score tokens |
+| Effective update / sync | Three actual native updates; full-element independent optimizer references;399 original logical tensors audited at live synchronization; cache invalidation observed |
+| Full checkpoint restore | PASS in a fresh process: later inputs/scores,291 gradients, next effective update,1,421 checkpoint chunks and RNG/scheduler/data state match the uninterrupted run |
+| Documentation reconstruction / C10 | Source reconstruction and actual reconstructed proxy entrypoint PASS; final portable delivery remains BLOCKED |
+| Not covered | Other checkpoints, arbitrary contexts, other topologies/hardware, graphs/v2 runner, quantization and performance |
+
+Current numerical acceptance is supported by November receipts. The two-model release is not complete: MoE gates and final documentation/implementation delivery remain outstanding. Full dense restore is complete and is not a pending experiment.
+
+## Continuation — 2026-11-11
+
+See the [current continuation evidence](evidence/rocm-20261111.md) for the checked dense-result reuse, new MoE inference measurements, original-byte storage representation and remaining acceptance. Performance: not evaluated.

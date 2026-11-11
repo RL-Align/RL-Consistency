@@ -18,7 +18,7 @@ Give your agent the skill, a model checkpoint, your post-training framework and 
 
 The skills share one numerical contract, C0–C10 stage map and evidence history. Diagnosis, implementation and verification can alternate in one agent session; separate agents are not required. A bounded diagnosis can finish with a failure report without changing production code. See [roles and handoffs](skills/train-inference-consistency/references/skill-suite.md).
 
-## Verified implementation examples
+## Historical verified implementation examples
 
 | Model | Post-training framework | Training–inference consistency | Evidence |
 |---|---|---|---|
@@ -28,6 +28,8 @@ The skills share one numerical contract, C0–C10 stage map and evidence history
 Measured on AMD MI300X with ROCm and BF16 models. Here, absolute consistency means identical original bytes within the declared model, weight version, execution paths and environment. The evidence page records the exact implementations, tested ranges and original results.
 
 These examples demonstrate successful implementations within that scope. Runtime code and task-specific patches are retained in the target projects; this repository distributes Markdown guidance. A new agent must implement or adapt the required code and independently validate its results. The examples do not guarantee that every agent can rebuild the implementations from the guide alone.
+
+The [November 11 acceptance record](skills/train-inference-consistency/models/evidence/rocm-20261111.md) tracks the current ROCm validation separately from those historical results. See the [reproduction archive and exact commands](skills/train-inference-consistency/models/evidence/rocm-20261111-reproduction.md), [task status](STATUS.md), and [retained storage investigation](skills/train-inference-consistency/models/evidence/rocm-20261106-storage.md).
 
 ## Quick start
 

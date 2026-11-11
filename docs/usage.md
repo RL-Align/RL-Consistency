@@ -35,7 +35,7 @@ For verification of an existing patch:
 
 > Read /absolute/path/RL-Consistency/skills/diagnose-train-inference-consistency/SKILL.md. Verify the supplied patch and evidence for DECLARED_SCOPE. Inspect actual bindings and rerun the original regression plus affected checks within the allocated resources. Do not repair product code as part of this review. Report failures or missing evidence without converting local results into full-model acceptance.
 
-For AMD validation with vime, follow [ROCm/vime environment preparation and agent task](../skills/train-inference-consistency/references/vime-rocm.md): create a separate container from an existing image, inspect/remove prior RL-Kernel integration, then modify the actual vime/Megatron/vLLM paths. The guide includes copyable Docker commands, environment probes and a complete implementation prompt. Work on Qwen3-8B first, then Qwen3-30B-A3B. Record environment readiness separately from model consistency acceptance.
+For AMD validation with vime, follow [ROCm/vime environment preparation and agent task](../skills/train-inference-consistency/references/vime-rocm.md): reuse a suitable current container, or prepare a separate environment when necessary and authorized; inspect prior RL-Kernel integration, then adapt the actual vime/Megatron/vLLM paths. The guide includes copyable Docker commands, environment probes and a complete implementation prompt. Work on Qwen3-8B first, then Qwen3-30B-A3B. Record environment readiness separately from model consistency acceptance.
 
 For the complete feature:
 

@@ -5,6 +5,7 @@ Use this procedure for AMD GPUs, vime training and training–inference consiste
 Contents:
 
 - [Responsibilities and paths](#responsibilities-and-paths)
+- [Reuse an existing container safely](#reuse-an-existing-container-safely)
 - [Create the container on the host](#create-the-container-on-the-host)
 - [Prepare sources and environment records inside the container](#prepare-sources-and-environment-records-inside-the-container)
 - [Check whether workspace mounts hide image sources](#check-whether-workspace-mounts-hide-image-sources)
@@ -23,7 +24,25 @@ Contents:
 | vLLM | Actual rollout, prefill/decode, KV cache and output capture | A separate source workspace prepared by the agent |
 | Common arithmetic | Fixed-order GEMM, attention, norm, logprob, MoE and related operations | Versioned modules in the target projects above; independently executed in all three paths |
 
-First reuse the ROCm software stack in an existing `rl-kernel:rocm-dev` image and inspect/remove RL-Kernel dependencies in a **new container**. The image name does not determine runtime dependencies; uninstalling one package does not prove framework patches and workers are independent. If a reliable independent stack cannot be recovered, use the vime ROCm image or build recipe.
+First inspect the available ROCm environment and preserve its source changes. An existing suitable container can be used directly; Docker is not a runtime prerequisite. When creating a separate environment is necessary and authorized, the host-side recipe below is one option. The image name does not determine runtime dependencies; inspect actual framework bindings and workers before removing a package or selecting another stack.
+
+## Reuse an existing container safely
+
+Before any GPU initialization, inspect repository commits, dirty diffs, untracked files, inherited `ROCR_VISIBLE_DEVICES`, `HIP_VISIBLE_DEVICES`, `CUDA_VISIBLE_DEVICES` and Ray settings. Preserve necessary changed and untracked files in a task-owned backup. Keep original failures and use fresh attempt directories. Do not run generic cleanup commands from upstream examples.
+
+Record `rocm-smi --showbus --showuniqueid --showpidgpus --showmeminfo vram`, KFD/sysfs topology and container device visibility. Authorization refers to physical Device identities, not Node numbers or process-local ordinals. Resolve each allowed Device to its PCI BDF and UUID. Select an authorized idle subset; never terminate a conflicting external job. The allocation size does not establish a tested TP/EP topology.
+
+Use the inspected runtime's supported physical UUID filter at the task entrypoint. Validate every process-local PCI BDF before allocating a test tensor. Then test the actual Ray worker and vLLM child environment construction. In the inspected Ray implementation, the AMD accelerator manager rejects a ROCr-only environment: it requires a HIP mask and checks that any CUDA mask agrees. A compatible configuration in the November attempt used ROCr UUIDs for physical Devices 4 and 5, and HIP/CUDA `0,1` relative to that ROCr enumeration. The vLLM child reordered those local IDs to `1,0`; both orders were checked through `hipDeviceGetPCIBusId`. These checks established ordinal mapping only: later DRM descriptor inspection found excluded-device VRAM records, so this combination did not satisfy strict no-allocation isolation. It must not be used as a validated isolation recipe. Never set all three variables to physical `4,5,6,7` without checking filtering semantics.
+
+For each driver, actor, diagnostic process and inference worker, retain the inherited masks, PID, actual PCI BDF, local index and selected current device. Correlate live task PIDs with `rocm-smi --showpidgpus`; `device_count` alone is insufficient. Inspect `/proc/PID/fdinfo` DRM device identities and memory records as well: this runtime opened excluded DRM nodes even when the selected compute device and `rocm-smi` allocation appeared correct. If the task prohibits all excluded-device allocations, stop task-owned GPU processes on that evidence. A node-denial wrapper is not a runnable solution unless HIP, Ray and the real workers also initialize successfully under it. Preserve the physical whitelist through child construction, restart and restore. An allocation guard must fail before model loading if an observed physical device is outside that whitelist.
+
+Start an independent Ray instance explicitly with `address="local"`, a unique namespace and a fresh short temporary directory on the validated storage. Clear inherited `RAY_ADDRESS` only in the task process. Record actual ports, session paths and owned PIDs. Long experiment paths can exceed the 107-byte Unix socket limit: retain the failure and use a short task-specific directory. Shut down only that instance; do not use global `ray stop`, `pkill`, device reset or service restart.
+
+Confirm storage using mount source, filesystem device, bind subpath, free capacity and available host-side provenance. A container path named `/workspace` or `/scratch-tmp` does not establish its host destination. If fresh host mount inspection is unavailable, explicitly distinguish current container mount observations from historical host cross-read/write evidence. Keep large model, compiler, checkpoint and experiment writes on confirmed storage, and separately estimate checkpoint save and restore peaks.
+
+Do not install Docker, mount a host socket, recreate other containers or change shared configuration merely because the current container lacks Docker. Use the existing sources, compiled dependencies and permitted device nodes. Record the environment as newly validated; historical model results cannot replace its acceptance. See the [November validation record](../models/evidence/rocm-20261106-resumed.md) for measured progress and limitations.
+
+The [November 11 reproduction recipe](../models/evidence/rocm-20261111-reproduction.md) delivers the subsequently verified task-private ROCr and Landlock entrypoints. It records exact physical UUID/BDF bindings, actual worker provenance, complete checkpoint resource budgets and original failure receipts. Use its measured recipe and acceptance bounds for that environment; the earlier ordinal-only probe above remains a retained failed isolation approach.
 
 ## Create the container on the host
 
@@ -87,7 +106,7 @@ Check each real worker's visible-device list and UUID/PCI mapping. Some ROCm HIP
 
 ## Prepare sources and environment records inside the container
 
-Run this only inside the newly created container. A cloned vime checkout is a source candidate to inspect; do not immediately upgrade dependencies in an unknown older image.
+Use these commands only for missing sources in a task-owned environment; inspect existing directories first and never clone over an existing checkout. A cloned vime checkout is a source candidate to inspect; do not immediately upgrade dependencies in an unknown older image.
 
 ```bash
 cd /workspace
