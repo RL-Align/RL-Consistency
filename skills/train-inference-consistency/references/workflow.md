@@ -2,6 +2,8 @@
 
 Use one task workspace per bound scope in the target project. Pin the model revision, complete weight manifest, tokenizer, input fixture, numerical contract, relevant source/build artifacts, loaded implementations, hardware and process groups. Keep immutable attempt directories beneath it. Markdown is the human index; use suitable machine-readable records and binary tensors in that workspace.
 
+The [skill suite](skill-suite.md) separates coordination, diagnosis/verification and implementation/integration. Reuse this task workspace and its evidence history across roles. Role completion is not gate acceptance; a bounded investigation may finish with a failure or blocker while downstream gates remain unexecuted. An end-to-end implementation request authorizes routine iteration between the procedures; separate agents are not required.
+
 ## Acceptance mode and dependencies
 
 Default to `consistency-only`: implement and verify the simplest valid path, with no speed target. Mark C1/C4 `not-required` with reason `performance not requested`. Slow implementations can be final deliveries; use [correctness-first.md](correctness-first.md). Memory/resource availability still matters to completing actual execution, without introducing a performance acceptance budget.

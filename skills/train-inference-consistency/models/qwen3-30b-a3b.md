@@ -2,6 +2,27 @@
 
 Bind the actual `Qwen3-30B-A3B` revision/config/weights and loaded `qwen3_moe` implementations. Verify expert count, top-k, expert width, normalization, auxiliary objective and quantization; do not substitute a different variant or assume the framework's example defaults match the intended contract. The requirements below guide new implementations. A completed full-model run is recorded in the measured profile below.
 
+## Current validation — 2026-11-11
+
+This table is the current task result; dated historical sections below retain their original scope. See the [current evidence](evidence/rocm-20261111.md) and [exact archive/replay instructions](evidence/rocm-20261111-reproduction.md). No RL-Kernel dependency. Performance: not evaluated.
+
+Measured hardware: AMD Instinct MI300X VF (gfx942), physical Devices 4–7. Measured configuration: original revision `ad44e777bcd18fa416d9da3bd8f70d33ebb85d39`,48 layers/30,532,122,624 parameters,128 experts/top8. BF16 model/activations/KV, FP32 gradients/masters/moments and GPU FP64 Adam intermediates. Native training PP3 on Devices4/5/6, independent rollout TP1 on7; TP/CP/DP/EP1. Main chain microbatch1/padding64, globalbatch2,20-token prompts and16 responses. The microbatch2/padding128 layout passes against microbatch1/padding64. Full inference covers8/20/32-token prompts,16 responses, cache off/on and chunks64/16; cache-on uses explicit2GiB native KV capacity.
+
+| Gate | Status | Actual scope/evidence |
+|---|---|---|
+| C0 | PASS | Original48 layers/18,867 logical tensors; actual PP3 and independent rollout provider/device inventories |
+| C1 | NOT REQUIRED | Performance: not evaluated |
+| C2 | PASS | Four original-width layers,128 experts/top8; proxy update/route/backward and cache-transition coverage |
+| C3 | PASS | Proxy and original48-layer four-configuration matrices pass482 pairs/1,952 score tokens each; full independent MoE boundaries pass |
+| C4 | NOT REQUIRED | Performance: not evaluated |
+| C5 | PASS | Full model: all three independent pairs96 valid tokens/pair;181,440 MoE field comparisons |
+| C6 | PASS | Full model:39,518 native gradient hooks,288 actor layer forwards and exact active-expert/cotangent coverage |
+| C7 | PASS | Independent router/expert/combine/gradient references; every full optimizer element checked at fixed accuracy criteria |
+| C8 | PASS | Three full-model updates; actual BF16 deployed weights change at both required boundaries |
+| C9 | PASS | Complete fork and fresh continuation pass: all scores,13,198 gradient tensors,30.532B optimizer elements,18,867 model/deployed tensors and RNG/scheduler/data equal; layout passes64 score tokens and6,720 MoE rows; complete full matrix passes |
+| C10 | PASS | Base archive and exact native-KV supplement delivered; reconstructed full restore/layout/matrix and unsupported-config guards pass; final English replay instructions verified |
+
+The declared reconstruction scope uses the pinned installed Python/native ABI and an isolated tree reconstructed from the delivered archive. Other hardware/topologies, arbitrary contexts, quantization, graph/v2-runner modes and performance are not covered. Consistency-only acceptance is complete in the declared scope. C1/C4 are not required; performance is not evaluated. Release proceeds through a PR subject to repository checks; the final document/PR/merge binding is retained in the external release-event.json.
 ## Proxy and common work
 
 For a uniform repeated MoE decoder, start with a contiguous four-layer proxy if it covers the observed layer families and transitions. Preserve all original per-layer dimensions, routers, expert count/top-k, shared experts if present, embedding/head and selected source tensors. For an inspected 128-expert/top-8 checkpoint, keep 128/top-8; reducing experts changes the tested problem. Add coverage for inactive/empty/skewed experts and actual expert partitions.
@@ -64,3 +85,26 @@ The full 48-layer Qwen3-30B-A3B implementation completed bitwise training–infe
 | Final runtime result | Both normal exits0; resume and MoE resume `all_equal=true`; final runtime flag0 at2026-10-24 00:09:32 Asia/Singapore |
 
 Scope is limited to the recorded modified providers and measured matrix. Training uses microbatch1/globalbatch2, two20-token chat prompts plus16 responses and THD padding128, with prefix caching off. Independent accuracy uses frozen tolerances separately from original-byte equality. Other hardware, frameworks, arbitrary contexts, multi-rank execution, quantization, graphs and the v2 runner remain unmeasured. Performance was not evaluated. Final release-bundle bookkeeping is separate from the completed runtime receipts.
+
+## Current execution — 2026-11-06
+
+The November task uses physical Devices 4–7 only and does not inherit acceptance from the historical run. See the [current gate table](../../../STATUS.md), [execution receipts](evidence/rocm-20261106-resumed.md), [storage finding](evidence/rocm-20261106-storage.md), and [reconstruction evidence](evidence/rocm-20261106-reconstruction.md). Performance: not evaluated.
+
+| Current measured item | Result |
+|---|---|
+| Environment | Same pinned ROCm/PyTorch/vime/Megatron/vLLM environment as the current dense run; task-private ROCr and inherited Landlock isolation |
+| Model / precision | Original48-layer revision bound; measured proxy retains4 original-width layers,128 experts/top8; BF16 model/activations/KV and FP32 main gradients/masters/moments |
+| Parallelism | Proxy training PP3 on physical4/5/6, TP/CP/DP/EP1; independent TP1 rollout on7; full-model PP3 remains unverified |
+| C0/C3/C9 | NOT RUN for complete required full-model coverage |
+| C2/C5/C6/C7/C8/C10 | BLOCKED; partial receipts below do not accept these gates; C1/C4 not-required |
+| Independent byte equality | Proxy initial version only:32 valid score tokens per pair and5,040 router/dispatch/expert/combine field comparisons pass |
+| Backward / effective update |1,402 actual gradient-hook payloads and667 participating-expert records audited;337 completed parameter references pass, but no all-rank optimizer completion or valid updated checkpoint |
+| Sync / full checkpoint restore | Updated-version synchronization loop and complete48-layer fresh-process restoration NOT RUN |
+| Documentation reconstruction | Shared source reconstruction passes; no accepted full-model MoE entrypoint reproduction |
+| Blocker / scope | Confirmed UID1000 block quota on `/dev/vdc1`; failed attempt and partial outputs retained. No full-model bitwise acceptance or performance claim |
+
+Resume the incomplete four-layer native loop only after sufficient quota headroom is confirmed. Then complete the required matrix, full-model updates/synchronization, checkpoint restoration and documentation reproduction. The failed partial optimizer state is not a valid resume checkpoint.
+
+## Continuation — 2026-11-11
+
+See the [current continuation evidence](evidence/rocm-20261111.md) for the checked dense-result reuse, new MoE inference measurements, original-byte storage representation and remaining acceptance. Performance: not evaluated.
